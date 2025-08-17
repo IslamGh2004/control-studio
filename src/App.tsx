@@ -9,6 +9,9 @@ import AdminLogin from "./components/admin/AdminLogin";
 import AdminLayout from "./components/admin/AdminLayout";
 import Dashboard from "./components/admin/Dashboard";
 import BooksManagement from "./components/admin/BooksManagement";
+import CategoriesManagement from "./components/admin/CategoriesManagement";
+import AuthorsManagement from "./components/admin/AuthorsManagement";
+import UsersManagement from "./components/admin/UsersManagement";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +27,9 @@ const App = () => (
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="books" element={<BooksManagement />} />
+            <Route path="categories" element={<CategoriesManagement />} />
+            <Route path="authors" element={<AuthorsManagement />} />
+            <Route path="users" element={<UsersManagement />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
