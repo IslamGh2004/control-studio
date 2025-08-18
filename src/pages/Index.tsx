@@ -1,34 +1,21 @@
 import { HeadphonesIcon, BookOpen, Users, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import UserNavigation from '@/components/UserNavigation';
+import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
+  const { user } = useAuth();
+
+  const handleNavigate = (page: string) => {
+    // Handle navigation to different user pages
+    console.log(`Navigate to: ${page}`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary to-primary-dark">
       {/* Navigation */}
-      <nav className="bg-surface/95 backdrop-blur-sm border-b border-border sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3 space-x-reverse">
-              <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-                <HeadphonesIcon className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-text-primary">مكتبة الصوت</h1>
-                <p className="text-xs text-text-secondary">منصة الكتب الصوتية العربية</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4 space-x-reverse">
-              <Button variant="outline" className="action-button">
-                تسجيل الدخول
-              </Button>
-              <Button asChild className="admin-button">
-                <a href="/admin/login">لوحة التحكم</a>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <UserNavigation onNavigate={handleNavigate} />
 
       {/* Hero Section */}
       <div className="relative overflow-hidden">
@@ -45,9 +32,15 @@ const Index = () => {
               منصة شاملة لأفضل الكتب الصوتية العربية مع مكتبة واسعة من المؤلفين والفئات المتنوعة
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button size="lg" className="admin-button text-lg px-8 py-4">
-                ابدأ الاستماع الآن
-              </Button>
+              {user ? (
+                <Button size="lg" className="admin-button text-lg px-8 py-4" onClick={() => handleNavigate('library')}>
+                  ابدأ الاستماع الآن
+                </Button>
+              ) : (
+                <Button size="lg" className="admin-button text-lg px-8 py-4" asChild>
+                  <a href="/auth">ابدأ الاستماع الآن</a>
+                </Button>
+              )}
               <Button variant="outline" size="lg" className="text-white border-white hover:bg-white hover:text-primary">
                 تعرف على المزيد
               </Button>
