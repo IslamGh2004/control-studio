@@ -1,40 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Eye, EyeOff, HeadphonesIcon, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const { adminSignIn, isAdmin, loading } = useAdminAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAdmin && !loading) {
+      navigate('/admin');
+    }
+  }, [isAdmin, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (!email || !password) return;
 
-    // Simulate API call
-    setTimeout(() => {
-      if (email === 'admin@example.com' && password === 'admin123') {
-        toast({
-          title: "تم تسجيل الدخول بنجاح",
-          description: "مرحباً بك في لوحة التحكم",
-        });
-        // Navigate to dashboard - in a real app, you'd use router
-        window.location.href = '/admin';
-      } else {
-        toast({
-          title: "خطأ في تسجيل الدخول",
-          description: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
-          variant: "destructive",
-        });
-      }
-      setIsLoading(false);
-    }, 1500);
+    setIsLoading(true);
+    const result = await adminSignIn(email, password);
+    
+    if (result.success) {
+      navigate('/admin');
+    }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -131,11 +129,10 @@ export default function AdminLogin() {
               )}
             </Button>
 
-            {/* Demo Credentials */}
+            {/* Info */}
             <div className="mt-6 p-4 bg-surface-secondary rounded-lg border border-border">
-              <p className="text-text-secondary text-sm mb-2">بيانات تجريبية:</p>
-              <p className="text-text-primary text-sm"><strong>البريد:</strong> admin@example.com</p>
-              <p className="text-text-primary text-sm"><strong>كلمة المرور:</strong> admin123</p>
+              <p className="text-text-secondary text-sm mb-2">معلومة:</p>
+              <p className="text-text-primary text-sm">يجب أن تكون مضافاً كمشرف في النظام للوصول إلى لوحة التحكم</p>
             </div>
           </form>
         </Card>

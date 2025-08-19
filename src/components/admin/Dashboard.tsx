@@ -6,88 +6,59 @@ import {
   TrendingUp,
   Download,
   Eye,
-  MessageSquare
+  MessageSquare,
+  Clock
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import bookCover1 from '@/assets/book-cover-1.jpg';
-import bookCover2 from '@/assets/book-cover-2.jpg';
-import bookCover3 from '@/assets/book-cover-3.jpg';
-
-const statsCards = [
-  {
-    title: 'إجمالي الكتب',
-    value: '1,247',
-    change: '+12%',
-    changeType: 'positive' as const,
-    icon: BookOpen,
-    gradient: 'from-blue-500 to-blue-600'
-  },
-  {
-    title: 'المستخدمين النشطين',
-    value: '5,832',
-    change: '+8%',
-    changeType: 'positive' as const,
-    icon: Users,
-    gradient: 'from-green-500 to-green-600'
-  },
-  {
-    title: 'ساعات الاستماع',
-    value: '23,456',
-    change: '+15%',
-    changeType: 'positive' as const,
-    icon: HeadphonesIcon,
-    gradient: 'from-purple-500 to-purple-600'
-  },
-  {
-    title: 'الفئات المتاحة',
-    value: '45',
-    change: '+3%',
-    changeType: 'positive' as const,
-    icon: FolderOpen,
-    gradient: 'from-orange-500 to-orange-600'
-  }
-];
-
-const recentBooks = [
-  {
-    id: 1,
-    title: 'أسرار التطوير الشخصي',
-    author: 'د. محمد العربي',
-    category: 'التنمية البشرية',
-    cover: bookCover1,
-    downloads: 1234,
-    status: 'منشور'
-  },
-  {
-    id: 2,
-    title: 'تاريخ الحضارة الإسلامية',
-    author: 'أ. فاطمة حسن',
-    category: 'التاريخ',
-    cover: bookCover2,
-    downloads: 987,
-    status: 'منشور'
-  },
-  {
-    id: 3,
-    title: 'قصص من التراث',
-    author: 'أحمد الكاتب',
-    category: 'الأدب',
-    cover: bookCover3,
-    downloads: 756,
-    status: 'مراجعة'
-  }
-];
-
-const recentActivity = [
-  { action: 'إضافة كتاب جديد', user: 'أحمد محمد', time: 'منذ 5 دقائق', type: 'book' },
-  { action: 'تسجيل مستخدم جديد', user: 'سارة علي', time: 'منذ 15 دقيقة', type: 'user' },
-  { action: 'تحديث فئة الكتب', user: 'محمد أحمد', time: 'منذ 30 دقيقة', type: 'category' },
-  { action: 'رسالة دعم فني جديدة', user: 'عبدالله محمد', time: 'منذ ساعة', type: 'support' }
-];
+import { useAdminStats } from '@/hooks/useAdminStats';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
+  const { stats, loading } = useAdminStats();
+
+  const statsCards = [
+    {
+      title: 'إجمالي الكتب',
+      value: stats.totalBooks.toString(),
+      change: '+12%',
+      changeType: 'positive' as const,
+      icon: BookOpen,
+      gradient: 'from-blue-500 to-blue-600'
+    },
+    {
+      title: 'إجمالي المستخدمين',
+      value: stats.totalUsers.toString() || 'N/A',
+      change: '+8%',
+      changeType: 'positive' as const,
+      icon: Users,
+      gradient: 'from-green-500 to-green-600'
+    },
+    {
+      title: 'ساعات الاستماع',
+      value: stats.totalListeningHours.toString(),
+      change: '+15%',
+      changeType: 'positive' as const,
+      icon: HeadphonesIcon,
+      gradient: 'from-purple-500 to-purple-600'
+    },
+    {
+      title: 'الفئات المتاحة',
+      value: stats.totalCategories.toString(),
+      change: '+3%',
+      changeType: 'positive' as const,
+      icon: FolderOpen,
+      gradient: 'from-orange-500 to-orange-600'
+    }
+  ];
+
+  const recentActivity = [
+    { action: 'إضافة كتاب جديد', user: 'النظام', time: 'منذ 5 دقائق', type: 'book' },
+    { action: 'تسجيل مستخدم جديد', user: 'النظام', time: 'منذ 15 دقيقة', type: 'user' },
+    { action: 'تحديث فئة الكتب', user: 'النظام', time: 'منذ 30 دقيقة', type: 'category' },
+    { action: 'رسالة دعم فني جديدة', user: 'النظام', time: 'منذ ساعة', type: 'support' }
+  ];
   return (
     <div className="space-y-8">
       {/* Page Header */}
@@ -110,24 +81,40 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsCards.map((stat, index) => (
-          <Card key={index} className="stat-card group cursor-pointer hover:scale-105">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-text-secondary text-sm mb-1">{stat.title}</p>
-                <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
-                <div className="flex items-center mt-2">
-                  <TrendingUp className="w-4 h-4 text-success ml-1" />
-                  <span className="text-success text-sm font-medium">{stat.change}</span>
-                  <span className="text-text-muted text-sm mr-1">من الشهر الماضي</span>
+        {loading ? (
+          // Loading skeletons
+          Array.from({ length: 4 }).map((_, index) => (
+            <Card key={index} className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-20 mb-2" />
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <Skeleton className="h-12 w-12 rounded-xl" />
+              </div>
+            </Card>
+          ))
+        ) : (
+          statsCards.map((stat, index) => (
+            <Card key={index} className="stat-card group cursor-pointer hover:scale-105">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm mb-1">{stat.title}</p>
+                  <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
+                  <div className="flex items-center mt-2">
+                    <TrendingUp className="w-4 h-4 text-success ml-1" />
+                    <span className="text-success text-sm font-medium">{stat.change}</span>
+                    <span className="text-text-muted text-sm mr-1">من الشهر الماضي</span>
+                  </div>
+                </div>
+                <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
+                  <stat.icon className="h-6 w-6 text-white" />
                 </div>
               </div>
-              <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
-                <stat.icon className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -141,31 +128,58 @@ export default function Dashboard() {
               </Button>
             </div>
             <div className="space-y-4">
-              {recentBooks.map((book) => (
-                <div key={book.id} className="flex items-center space-x-4 space-x-reverse p-4 rounded-xl bg-surface-secondary hover:bg-card-hover transition-all duration-200">
-                  <img 
-                    src={book.cover} 
-                    alt={book.title}
-                    className="w-16 h-20 rounded-lg object-cover shadow-admin"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-text-primary truncate">{book.title}</h3>
-                    <p className="text-text-secondary text-sm">{book.author}</p>
-                    <p className="text-text-muted text-xs">{book.category}</p>
-                  </div>
-                  <div className="text-left">
-                    <div className="flex items-center text-text-secondary text-sm">
-                      <Download className="w-4 h-4 ml-1" />
-                      {book.downloads}
+              {loading ? (
+                // Loading skeletons
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="flex items-center space-x-4 space-x-reverse p-4 rounded-xl bg-surface-secondary">
+                    <Skeleton className="w-16 h-20 rounded-lg" />
+                    <div className="flex-1 min-w-0">
+                      <Skeleton className="h-4 w-32 mb-2" />
+                      <Skeleton className="h-3 w-24 mb-1" />
+                      <Skeleton className="h-3 w-20" />
                     </div>
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium mt-2 ${
-                      book.status === 'منشور' ? 'status-active' : 'status-inactive'
-                    }`}>
-                      {book.status}
-                    </span>
+                    <div className="text-left">
+                      <Skeleton className="h-4 w-16 mb-2" />
+                      <Skeleton className="h-5 w-12" />
+                    </div>
                   </div>
+                ))
+              ) : stats.recentBooks.length > 0 ? (
+                stats.recentBooks.map((book) => (
+                  <div key={book.id} className="flex items-center space-x-4 space-x-reverse p-4 rounded-xl bg-surface-secondary hover:bg-card-hover transition-all duration-200">
+                    <div className="w-16 h-20 rounded-lg bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center shadow-admin">
+                      {book.cover_url ? (
+                        <img 
+                          src={book.cover_url} 
+                          alt={book.title}
+                          className="w-16 h-20 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <BookOpen className="h-8 w-8 text-white" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-text-primary truncate">{book.title || 'بدون عنوان'}</h3>
+                      <p className="text-text-secondary text-sm">{book.author || 'مؤلف غير محدد'}</p>
+                      <p className="text-text-muted text-xs">{book.category || 'فئة غير محددة'}</p>
+                    </div>
+                    <div className="text-left">
+                      <div className="flex items-center text-text-secondary text-sm">
+                        <Clock className="w-4 h-4 ml-1" />
+                        {book.duration_in_seconds ? Math.floor(book.duration_in_seconds / 60) + ' د' : 'غير محدد'}
+                      </div>
+                      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium mt-2 status-active">
+                        متاح
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-text-secondary">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4 text-text-muted" />
+                  <p>لا توجد كتب مضافة بعد</p>
                 </div>
-              ))}
+              )}
             </div>
           </Card>
         </div>

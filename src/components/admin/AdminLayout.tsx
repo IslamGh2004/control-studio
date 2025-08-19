@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 const navigation = [
   { name: 'لوحة الإحصائيات', href: '/admin', icon: LayoutDashboard },
@@ -39,6 +40,22 @@ const navigation = [
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { isAdmin, loading, adminSignOut, user } = useAdminAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-text-primary">جاري التحقق من الصلاحيات...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   const isActiveRoute = (href: string) => {
     if (href === '/admin') {
@@ -130,6 +147,7 @@ export default function AdminLayout() {
             <Button 
               variant="ghost" 
               className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={adminSignOut}
             >
               <LogOut className="ml-3 h-5 w-5" />
               تسجيل الخروج
@@ -173,11 +191,15 @@ export default function AdminLayout() {
             {/* Admin Profile */}
             <div className="flex items-center space-x-3 space-x-reverse">
               <div className="text-right">
-                <div className="text-sm font-medium text-text-primary">أحمد محمد</div>
+                <div className="text-sm font-medium text-text-primary">
+                  {user?.email?.split('@')[0] || 'مشرف النظام'}
+                </div>
                 <div className="text-xs text-text-secondary">مدير النظام</div>
               </div>
               <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center">
-                <span className="text-sm font-medium text-white">أ</span>
+                <span className="text-sm font-medium text-white">
+                  {user?.email?.charAt(0).toUpperCase() || 'M'}
+                </span>
               </div>
             </div>
           </div>
