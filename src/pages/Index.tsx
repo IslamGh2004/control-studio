@@ -3,14 +3,36 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import UserNavigation from '@/components/UserNavigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useBooks } from '@/hooks/useBooks';
+import { useCategories } from '@/hooks/useCategories';
+import { BooksGrid } from '@/components/BooksGrid';
+import { CategoriesGrid } from '@/components/CategoriesGrid';
 
 const Index = () => {
   const { user } = useAuth();
+  const { books, loading: booksLoading } = useBooks();
+  const { categories, loading: categoriesLoading } = useCategories();
 
   const handleNavigate = (page: string) => {
     // Handle navigation to different user pages
     console.log(`Navigate to: ${page}`);
   };
+
+  const handlePlayBook = (book: any) => {
+    console.log('Playing book:', book);
+    // TODO: Implement audio player
+  };
+
+  const handleCategoryClick = (category: any) => {
+    console.log('Category clicked:', category);
+    // TODO: Navigate to category page
+  };
+
+  // Get featured books (first 4 books)
+  const featuredBooks = books.slice(0, 4);
+  
+  // Get featured categories (first 6 categories)
+  const featuredCategories = categories.slice(0, 6);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary to-primary-dark">
@@ -49,6 +71,58 @@ const Index = () => {
         </div>
       </div>
 
+      {/* Categories Section */}
+      <div className="bg-surface py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-text-primary mb-4">تصفح الفئات</h2>
+            <p className="text-text-secondary text-lg max-w-2xl mx-auto">
+              اكتشف مجموعة متنوعة من الفئات والمواضيع المختلفة
+            </p>
+          </div>
+          
+          <CategoriesGrid 
+            categories={featuredCategories}
+            loading={categoriesLoading}
+            onCategoryClick={handleCategoryClick}
+          />
+          
+          {categories.length > 6 && (
+            <div className="text-center mt-8">
+              <Button variant="outline" size="lg" onClick={() => handleNavigate('categories')}>
+                عرض جميع الفئات
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Featured Books Section */}
+      <div className="bg-surface-secondary py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-text-primary mb-4">الكتب المميزة</h2>
+            <p className="text-text-secondary text-lg max-w-2xl mx-auto">
+              مجموعة مختارة من أفضل الكتب الصوتية المتاحة
+            </p>
+          </div>
+          
+          <BooksGrid 
+            books={featuredBooks}
+            loading={booksLoading}
+            onPlay={handlePlayBook}
+          />
+          
+          {books.length > 4 && (
+            <div className="text-center mt-8">
+              <Button variant="outline" size="lg" onClick={() => handleNavigate('books')}>
+                عرض جميع الكتب
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Features Section */}
       <div className="bg-surface py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -65,7 +139,7 @@ const Index = () => {
                 <BookOpen className="h-8 w-8 text-white" />
               </div>
               <h3 className="text-xl font-bold text-text-primary mb-3">مكتبة ضخمة</h3>
-              <p className="text-text-secondary">آلاف الكتب الصوتية في جميع المجالات والفئات</p>
+              <p className="text-text-secondary">{books.length} كتاب صوتي في {categories.length} فئة مختلفة</p>
             </Card>
 
             <Card className="stat-card group text-center hover:scale-105">
