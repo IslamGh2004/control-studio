@@ -9,12 +9,17 @@ import {
   Eye,
   Download,
   MoreHorizontal,
-  Upload
+  Upload,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,92 +34,119 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import bookCover1 from '@/assets/book-cover-1.jpg';
-import bookCover2 from '@/assets/book-cover-2.jpg';
-import bookCover3 from '@/assets/book-cover-3.jpg';
-
-const books = [
-  {
-    id: 1,
-    title: 'أسرار التطوير الشخصي',
-    author: 'د. محمد العربي',
-    category: 'التنمية البشرية',
-    cover: bookCover1,
-    downloads: 1234,
-    duration: '4 ساعات 30 دقيقة',
-    status: 'منشور',
-    dateAdded: '2024-01-15',
-    size: '125 MB'
-  },
-  {
-    id: 2,
-    title: 'تاريخ الحضارة الإسلامية',
-    author: 'أ. فاطمة حسن',
-    category: 'التاريخ',
-    cover: bookCover2,
-    downloads: 987,
-    duration: '6 ساعات 15 دقيقة',
-    status: 'منشور',
-    dateAdded: '2024-01-10',
-    size: '178 MB'
-  },
-  {
-    id: 3,
-    title: 'قصص من التراث',
-    author: 'أحمد الكاتب',
-    category: 'الأدب',
-    cover: bookCover3,
-    downloads: 756,
-    duration: '3 ساعات 45 دقيقة',
-    status: 'مراجعة',
-    dateAdded: '2024-01-08',
-    size: '98 MB'
-  },
-  {
-    id: 4,
-    title: 'فن الإدارة الحديثة',
-    author: 'سارة محمود',
-    category: 'الأعمال',
-    cover: bookCover1,
-    downloads: 543,
-    duration: '5 ساعات 20 دقيقة',
-    status: 'منشور',
-    dateAdded: '2024-01-05',
-    size: '143 MB'
-  },
-  {
-    id: 5,
-    title: 'رحلة في عالم البرمجة',
-    author: 'عبدالله التقني',
-    category: 'التكنولوجيا',
-    cover: bookCover2,
-    downloads: 432,
-    duration: '7 ساعات 10 دقيقة',
-    status: 'مسودة',
-    dateAdded: '2024-01-03',
-    size: '201 MB'
-  }
-];
+import { useAdminBooks } from '@/hooks/useAdminBooks';
+import { useCategories } from '@/hooks/useCategories';
 
 export default function BooksManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  const filteredBooks = books.filter(book => {
-    const matchesSearch = book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         book.author.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || book.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingBook, setEditingBook] = useState<any>(null);
+  const [newBook, setNewBook] = useState({
+    title: '',
+    author: '',
+    description: '',
+    category_id: '',
+    duration_in_seconds: 0,
+    cover_url: '',
+    audio_url: ''
   });
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'منشور': return 'status-active';
-      case 'مراجعة': return 'status-inactive';
-      case 'مسودة': return 'status-blocked';
-      default: return 'status-inactive';
+  const { books, loading, addBook, updateBook, deleteBook, stats } = useAdminBooks();
+  const { categories } = useCategories();
+
+  const filteredBooks = books.filter(book => {
+    const matchesSearch = (book.title?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (book.author?.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesSearch;
+  });
+
+  const handleAddBook = async () => {
+    if (newBook.title.trim()) {
+      const bookData = {
+        ...newBook,
+        category_id: newBook.category_id ? parseInt(newBook.category_id) : null
+      };
+      const result = await addBook(bookData);
+      if (result.success) {
+        setNewBook({
+          title: '',
+          author: '',
+          description: '',
+          category_id: '',
+          duration_in_seconds: 0,
+          cover_url: '',
+          audio_url: ''
+        });
+        setIsAddDialogOpen(false);
+      }
     }
   };
+
+  const handleEditBook = (book: any) => {
+    setEditingBook(book);
+    setNewBook({
+      title: book.title || '',
+      author: book.author || '',
+      description: book.description || '',
+      category_id: book.category_id?.toString() || '',
+      duration_in_seconds: book.duration_in_seconds || 0,
+      cover_url: book.cover_url || '',
+      audio_url: book.audio_url || ''
+    });
+  };
+
+  const handleUpdateBook = async () => {
+    if (editingBook && newBook.title.trim()) {
+      const result = await updateBook(editingBook.id, {
+        ...newBook,
+        category_id: newBook.category_id ? parseInt(newBook.category_id) : null
+      });
+      if (result.success) {
+        setEditingBook(null);
+        setNewBook({
+          title: '',
+          author: '',
+          description: '',
+          category_id: '',
+          duration_in_seconds: 0,
+          cover_url: '',
+          audio_url: ''
+        });
+      }
+    }
+  };
+
+  const handleDeleteBook = async (id: number) => {
+    await deleteBook(id);
+  };
+
+  const resetForm = () => {
+    setNewBook({
+      title: '',
+      author: '',
+      description: '',
+      category_id: '',
+      duration_in_seconds: 0,
+      cover_url: '',
+      audio_url: ''
+    });
+    setEditingBook(null);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours} ساعة ${minutes} دقيقة`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -124,10 +156,128 @@ export default function BooksManagement() {
           <h1 className="text-3xl font-bold text-text-primary">إدارة الكتب</h1>
           <p className="text-text-secondary mt-1">إدارة وتنظيم مكتبة الكتب الصوتية</p>
         </div>
-        <Button className="admin-button">
-          <Plus className="w-4 h-4 ml-2" />
-          إضافة كتاب جديد
-        </Button>
+        <Dialog open={isAddDialogOpen || !!editingBook} onOpenChange={(open) => {
+          if (!open) {
+            setIsAddDialogOpen(false);
+            resetForm();
+          }
+        }}>
+          <DialogTrigger asChild>
+            <Button 
+              onClick={() => setIsAddDialogOpen(true)}
+              className="bg-gradient-primary hover:bg-gradient-primary/90 text-white shadow-elegant"
+            >
+              <Plus className="w-4 h-4 ml-2" />
+              إضافة كتاب جديد
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-right">
+                {editingBook ? 'تعديل الكتاب' : 'إضافة كتاب جديد'}
+              </DialogTitle>
+              <DialogDescription className="text-right">
+                {editingBook ? 'قم بتعديل بيانات الكتاب' : 'أدخل بيانات الكتاب الجديد'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="title" className="text-right block">عنوان الكتاب</Label>
+                <Input
+                  id="title"
+                  value={newBook.title}
+                  onChange={(e) => setNewBook({...newBook, title: e.target.value})}
+                  placeholder="أدخل عنوان الكتاب"
+                  className="text-right"
+                />
+              </div>
+              <div>
+                <Label htmlFor="author" className="text-right block">المؤلف</Label>
+                <Input
+                  id="author"
+                  value={newBook.author}
+                  onChange={(e) => setNewBook({...newBook, author: e.target.value})}
+                  placeholder="أدخل اسم المؤلف"
+                  className="text-right"
+                />
+              </div>
+              <div>
+                <Label htmlFor="category" className="text-right block">الفئة</Label>
+                <Select value={newBook.category_id} onValueChange={(value) => setNewBook({...newBook, category_id: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الفئة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="description" className="text-right block">الوصف</Label>
+                <Textarea
+                  id="description"
+                  value={newBook.description}
+                  onChange={(e) => setNewBook({...newBook, description: e.target.value})}
+                  placeholder="أدخل وصف الكتاب"
+                  className="text-right"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="duration" className="text-right block">المدة (بالثواني)</Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  value={newBook.duration_in_seconds}
+                  onChange={(e) => setNewBook({...newBook, duration_in_seconds: parseInt(e.target.value) || 0})}
+                  placeholder="أدخل مدة الكتاب بالثواني"
+                  className="text-right"
+                />
+              </div>
+              <div>
+                <Label htmlFor="cover_url" className="text-right block">رابط الغلاف</Label>
+                <Input
+                  id="cover_url"
+                  value={newBook.cover_url}
+                  onChange={(e) => setNewBook({...newBook, cover_url: e.target.value})}
+                  placeholder="أدخل رابط صورة الغلاف"
+                  className="text-right"
+                />
+              </div>
+              <div>
+                <Label htmlFor="audio_url" className="text-right block">رابط الملف الصوتي</Label>
+                <Input
+                  id="audio_url"
+                  value={newBook.audio_url}
+                  onChange={(e) => setNewBook({...newBook, audio_url: e.target.value})}
+                  placeholder="أدخل رابط الملف الصوتي"
+                  className="text-right"
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex-row-reverse">
+              <Button 
+                onClick={editingBook ? handleUpdateBook : handleAddBook}
+                className="bg-gradient-primary hover:bg-gradient-primary/90"
+              >
+                {editingBook ? 'حفظ التعديلات' : 'إضافة الكتاب'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsAddDialogOpen(false);
+                  resetForm();
+                }}
+              >
+                إلغاء
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats Cards */}
@@ -136,7 +286,7 @@ export default function BooksManagement() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-text-secondary text-sm">إجمالي الكتب</p>
-              <p className="text-2xl font-bold text-text-primary">1,247</p>
+              <p className="text-2xl font-bold text-text-primary">{stats.totalBooks}</p>
             </div>
             <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-white" />
@@ -246,37 +396,41 @@ export default function BooksManagement() {
             {filteredBooks.map((book) => (
               <TableRow key={book.id} className="hover:bg-card-hover transition-colors">
                 <TableCell>
-                  <div className="flex items-center space-x-3 space-x-reverse">
+                   <div className="flex items-center space-x-3 space-x-reverse">
                     <img 
-                      src={book.cover} 
-                      alt={book.title}
+                      src={book.cover_url || '/placeholder.svg'} 
+                      alt={book.title || 'كتاب'}
                       className="w-12 h-16 rounded-lg object-cover shadow-admin"
                     />
                     <div>
                       <div className="font-semibold text-text-primary">{book.title}</div>
-                      <div className="text-text-muted text-sm">{book.size}</div>
+                      <div className="text-text-muted text-sm">{book.duration_in_seconds ? formatDuration(book.duration_in_seconds) : 'غير محدد'}</div>
                     </div>
                   </div>
                 </TableCell>
                 <TableCell className="text-text-secondary">{book.author}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className="bg-primary-light text-primary border-primary/20">
-                    {book.category}
+                    {book.category || 'غير محدد'}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-text-secondary">{book.duration}</TableCell>
+                <TableCell className="text-text-secondary">
+                  {book.duration_in_seconds ? formatDuration(book.duration_in_seconds) : 'غير محدد'}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center text-text-secondary">
                     <Download className="w-4 h-4 ml-1" />
-                    {book.downloads.toLocaleString()}
+                    0
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={`${getStatusVariant(book.status)} status-badge`}>
-                    {book.status}
+                  <Badge className="status-badge bg-green-100 text-green-800">
+                    منشور
                   </Badge>
                 </TableCell>
-                <TableCell className="text-text-secondary">{book.dateAdded}</TableCell>
+                <TableCell className="text-text-secondary">
+                  {book.created_at ? new Date(book.created_at).toLocaleDateString('ar-EG') : 'غير محدد'}
+                </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -285,11 +439,11 @@ export default function BooksManagement() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                       <DropdownMenuItem>
                         <Eye className="w-4 h-4 ml-2" />
                         عرض التفاصيل
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditBook(book)}>
                         <Edit3 className="w-4 h-4 ml-2" />
                         تعديل
                       </DropdownMenuItem>
@@ -297,7 +451,10 @@ export default function BooksManagement() {
                         <Download className="w-4 h-4 ml-2" />
                         تحميل الملف
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem 
+                        className="text-destructive"
+                        onClick={() => handleDeleteBook(book.id)}
+                      >
                         <Trash2 className="w-4 h-4 ml-2" />
                         حذف
                       </DropdownMenuItem>

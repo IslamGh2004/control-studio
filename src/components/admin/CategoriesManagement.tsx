@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,112 +9,67 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-
-// Mock data for categories
-const mockCategories = [
-  {
-    id: 1,
-    name: 'التنمية البشرية',
-    description: 'كتب في مجال تطوير الذات والنمو الشخصي',
-    booksCount: 45,
-    isActive: true,
-    createdAt: '2024-01-15'
-  },
-  {
-    id: 2,
-    name: 'الأدب العربي',
-    description: 'الأعمال الأدبية العربية الكلاسيكية والمعاصرة',
-    booksCount: 78,
-    isActive: true,
-    createdAt: '2024-01-10'
-  },
-  {
-    id: 3,
-    name: 'العلوم والتكنولوجيا',
-    description: 'كتب في مجال العلوم والابتكار التقني',
-    booksCount: 32,
-    isActive: true,
-    createdAt: '2024-01-08'
-  },
-  {
-    id: 4,
-    name: 'التاريخ والحضارة',
-    description: 'كتب تاريخية عن الحضارات والأحداث المهمة',
-    booksCount: 56,
-    isActive: false,
-    createdAt: '2024-01-05'
-  },
-  {
-    id: 5,
-    name: 'الاقتصاد والأعمال',
-    description: 'كتب في إدارة الأعمال والاقتصاد',
-    booksCount: 23,
-    isActive: true,
-    createdAt: '2024-01-03'
-  },
-];
+import { useAdminCategories } from '@/hooks/useAdminCategories';
 
 export default function CategoriesManagement() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [categories, setCategories] = useState(mockCategories);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [newCategory, setNewCategory] = useState({
     name: '',
-    description: '',
-    isActive: true
+    description: ''
   });
 
+  const { categories, loading, addCategory, updateCategory, deleteCategory, stats } = useAdminCategories();
+
   const filteredCategories = categories.filter(category =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    category.description.toLowerCase().includes(searchTerm.toLowerCase())
+    category.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (newCategory.name.trim()) {
-      const category = {
-        id: categories.length + 1,
-        name: newCategory.name,
-        description: newCategory.description,
-        booksCount: 0,
-        isActive: newCategory.isActive,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setCategories([...categories, category]);
-      setNewCategory({ name: '', description: '', isActive: true });
-      setIsAddDialogOpen(false);
+      const result = await addCategory(newCategory);
+      if (result.success) {
+        setNewCategory({ name: '', description: '' });
+        setIsAddDialogOpen(false);
+      }
     }
   };
 
   const handleEditCategory = (category: any) => {
     setEditingCategory(category);
     setNewCategory({
-      name: category.name,
-      description: category.description,
-      isActive: category.isActive
+      name: category.name || '',
+      description: ''
     });
   };
 
-  const handleUpdateCategory = () => {
+  const handleUpdateCategory = async () => {
     if (editingCategory && newCategory.name.trim()) {
-      setCategories(categories.map(cat => 
-        cat.id === editingCategory.id 
-          ? { ...cat, name: newCategory.name, description: newCategory.description, isActive: newCategory.isActive }
-          : cat
-      ));
-      setEditingCategory(null);
-      setNewCategory({ name: '', description: '', isActive: true });
+      const result = await updateCategory(editingCategory.id, newCategory);
+      if (result.success) {
+        setEditingCategory(null);
+        setNewCategory({ name: '', description: '' });
+      }
     }
   };
 
-  const handleDeleteCategory = (id: number) => {
-    setCategories(categories.filter(cat => cat.id !== id));
+  const handleDeleteCategory = async (id: number) => {
+    await deleteCategory(id);
   };
 
   const resetForm = () => {
-    setNewCategory({ name: '', description: '', isActive: true });
+    setNewCategory({ name: '', description: '' });
     setEditingCategory(null);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -171,13 +126,6 @@ export default function CategoriesManagement() {
                   rows={3}
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <Switch
-                  checked={newCategory.isActive}
-                  onCheckedChange={(checked) => setNewCategory({...newCategory, isActive: checked})}
-                />
-                <Label>الفئة نشطة</Label>
-              </div>
             </div>
             <DialogFooter className="flex-row-reverse">
               <Button 
@@ -207,7 +155,7 @@ export default function CategoriesManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-secondary">إجمالي الفئات</p>
-                <p className="text-2xl font-bold text-text-primary">{categories.length}</p>
+                <p className="text-2xl font-bold text-text-primary">{stats.totalCategories}</p>
               </div>
               <div className="h-12 w-12 bg-gradient-primary rounded-xl flex items-center justify-center">
                 <Eye className="h-6 w-6 text-white" />
@@ -221,7 +169,7 @@ export default function CategoriesManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-secondary">الفئات النشطة</p>
-                <p className="text-2xl font-bold text-text-primary">{categories.filter(c => c.isActive).length}</p>
+                <p className="text-2xl font-bold text-text-primary">{stats.totalCategories}</p>
               </div>
               <div className="h-12 w-12 bg-gradient-accent rounded-xl flex items-center justify-center">
                 <Badge className="h-6 w-6 text-white" />
@@ -235,7 +183,7 @@ export default function CategoriesManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-secondary">إجمالي الكتب</p>
-                <p className="text-2xl font-bold text-text-primary">{categories.reduce((sum, cat) => sum + cat.booksCount, 0)}</p>
+                <p className="text-2xl font-bold text-text-primary">{stats.totalBooks}</p>
               </div>
               <div className="h-12 w-12 bg-gradient-secondary rounded-xl flex items-center justify-center">
                 <Plus className="h-6 w-6 text-white" />
@@ -249,7 +197,7 @@ export default function CategoriesManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-secondary">متوسط الكتب لكل فئة</p>
-                <p className="text-2xl font-bold text-text-primary">{Math.round(categories.reduce((sum, cat) => sum + cat.booksCount, 0) / categories.length)}</p>
+                <p className="text-2xl font-bold text-text-primary">{stats.avgBooksPerCategory}</p>
               </div>
               <div className="h-12 w-12 bg-gradient-tertiary rounded-xl flex items-center justify-center">
                 <Search className="h-6 w-6 text-white" />
@@ -297,18 +245,20 @@ export default function CategoriesManagement() {
                 {filteredCategories.map((category) => (
                   <TableRow key={category.id} className="hover:bg-surface-secondary/50 transition-colors">
                     <TableCell className="font-medium text-text-primary">{category.name}</TableCell>
-                    <TableCell className="text-text-secondary max-w-xs truncate">{category.description}</TableCell>
+                    <TableCell className="text-text-secondary max-w-xs truncate">لا يوجد وصف</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-primary">
-                        {category.booksCount} كتاب
+                        {(category as any).book_count || 0} كتاب
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={category.isActive ? "default" : "secondary"}>
-                        {category.isActive ? 'نشط' : 'غير نشط'}
+                      <Badge variant="default">
+                        نشط
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-text-secondary">{category.createdAt}</TableCell>
+                    <TableCell className="text-text-secondary">
+                      {category.created_at ? new Date(category.created_at).toLocaleDateString('ar-EG') : 'غير محدد'}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
