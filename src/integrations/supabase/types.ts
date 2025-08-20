@@ -29,6 +29,33 @@ export type Database = {
         }
         Relationships: []
       }
+      authors: {
+        Row: {
+          biography: string | null
+          created_at: string | null
+          id: string
+          image_url: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          biography?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          biography?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       books: {
         Row: {
           audio_url: string | null
@@ -211,7 +238,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_categories_with_book_count: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          book_count: number
+          created_at: string
+          id: number
+          name: string
+        }[]
+      }
+      is_admin: {
+        Args: { check_user_id?: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
