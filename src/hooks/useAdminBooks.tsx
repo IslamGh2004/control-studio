@@ -33,11 +33,36 @@ export const useAdminBooks = () => {
     }
   };
 
-  const addBook = async (bookData: BookInsert) => {
+  const addBook = async (bookData: BookInsert, files?: { audioFile: File; coverFile: File }) => {
     try {
+      let finalBookData = { ...bookData };
+
+      // If files are provided, upload them first
+      if (files && files.audioFile && files.coverFile) {
+        const tempBookId = Date.now().toString();
+        
+        const formData = new FormData();
+        formData.append('audioFile', files.audioFile);
+        formData.append('coverFile', files.coverFile);
+        formData.append('bookId', tempBookId);
+
+        const { data: uploadResult, error: uploadError } = await supabase.functions.invoke('upload-book-files', {
+          body: formData
+        });
+
+        if (uploadError) throw uploadError;
+
+        finalBookData = {
+          ...finalBookData,
+          cover_url: uploadResult.coverUrl,
+          audio_url: uploadResult.audioUrl,
+          duration_in_seconds: uploadResult.duration
+        };
+      }
+
       const { data, error } = await supabase
         .from('books')
-        .insert([bookData])
+        .insert([finalBookData])
         .select()
         .single();
 
@@ -46,14 +71,14 @@ export const useAdminBooks = () => {
       setBooks(prev => [data, ...prev]);
       toast({
         title: 'تم الإضافة',
-        description: 'تم إضافة الكتاب بنجاح',
+        description: 'تم إضافة الكتاب بنجاح مع الملفات',
       });
       return { success: true, data };
     } catch (error) {
       console.error('Error adding book:', error);
       toast({
         title: 'خطأ',
-        description: 'حدث خطأ في إضافة الكتاب',
+        description: 'حدث خطأ في إضافة الكتاب أو رفع الملفات',
         variant: 'destructive',
       });
       return { success: false, error };

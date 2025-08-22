@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
-type Category = Database['public']['Tables']['categories']['Row'];
+type Category = Database['public']['Tables']['categories']['Row'] & { book_count?: number };
 type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
 type CategoryUpdate = Database['public']['Tables']['categories']['Update'];
 
@@ -18,7 +18,10 @@ export const useAdminCategories = () => {
         .rpc('get_categories_with_book_count');
 
       if (error) throw error;
-      setCategories(data || []);
+      setCategories((data || []).map((item: any) => ({
+        ...item,
+        description: item.description || '' // Ensure description field exists
+      })));
     } catch (error) {
       console.error('Error fetching categories:', error);
       toast({

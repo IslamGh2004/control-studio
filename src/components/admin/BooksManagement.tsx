@@ -51,6 +51,9 @@ export default function BooksManagement() {
     cover_url: '',
     audio_url: ''
   });
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const { books, loading, addBook, updateBook, deleteBook, stats } = useAdminBooks();
   const { categories } = useCategories();
@@ -63,22 +66,32 @@ export default function BooksManagement() {
 
   const handleAddBook = async () => {
     if (newBook.title.trim()) {
-      const bookData = {
-        ...newBook,
-        category_id: newBook.category_id ? parseInt(newBook.category_id) : null
-      };
-      const result = await addBook(bookData);
-      if (result.success) {
-        setNewBook({
-          title: '',
-          author: '',
-          description: '',
-          category_id: '',
-          duration_in_seconds: 0,
-          cover_url: '',
-          audio_url: ''
-        });
-        setIsAddDialogOpen(false);
+      setUploading(true);
+      try {
+        const bookData = {
+          ...newBook,
+          category_id: newBook.category_id ? parseInt(newBook.category_id) : null
+        };
+        
+        const files = (coverFile && audioFile) ? { coverFile, audioFile } : undefined;
+        const result = await addBook(bookData, files);
+        
+        if (result.success) {
+          setNewBook({
+            title: '',
+            author: '',
+            description: '',
+            category_id: '',
+            duration_in_seconds: 0,
+            cover_url: '',
+            audio_url: ''
+          });
+          setCoverFile(null);
+          setAudioFile(null);
+          setIsAddDialogOpen(false);
+        }
+      } finally {
+        setUploading(false);
       }
     }
   };
@@ -131,6 +144,8 @@ export default function BooksManagement() {
       cover_url: '',
       audio_url: ''
     });
+    setCoverFile(null);
+    setAudioFile(null);
     setEditingBook(null);
   };
 
@@ -228,43 +243,58 @@ export default function BooksManagement() {
                 />
               </div>
               <div>
-                <Label htmlFor="duration" className="text-right block">المدة (بالثواني)</Label>
+                <Label htmlFor="duration" className="text-right block">المدة (يتم حسابها تلقائياً)</Label>
                 <Input
                   id="duration"
                   type="number"
                   value={newBook.duration_in_seconds}
                   onChange={(e) => setNewBook({...newBook, duration_in_seconds: parseInt(e.target.value) || 0})}
-                  placeholder="أدخل مدة الكتاب بالثواني"
+                  placeholder="سيتم حساب المدة تلقائياً عند رفع الملف الصوتي"
                   className="text-right"
+                  disabled
                 />
               </div>
               <div>
-                <Label htmlFor="cover_url" className="text-right block">رابط الغلاف</Label>
+                <Label htmlFor="cover_file" className="text-right block">صورة الغلاف</Label>
                 <Input
-                  id="cover_url"
-                  value={newBook.cover_url}
-                  onChange={(e) => setNewBook({...newBook, cover_url: e.target.value})}
-                  placeholder="أدخل رابط صورة الغلاف"
+                  id="cover_file"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
                   className="text-right"
                 />
+                {coverFile && (
+                  <p className="text-sm text-text-secondary mt-1">تم اختيار: {coverFile.name}</p>
+                )}
               </div>
               <div>
-                <Label htmlFor="audio_url" className="text-right block">رابط الملف الصوتي</Label>
+                <Label htmlFor="audio_file" className="text-right block">الملف الصوتي</Label>
                 <Input
-                  id="audio_url"
-                  value={newBook.audio_url}
-                  onChange={(e) => setNewBook({...newBook, audio_url: e.target.value})}
-                  placeholder="أدخل رابط الملف الصوتي"
+                  id="audio_file"
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
                   className="text-right"
                 />
+                {audioFile && (
+                  <p className="text-sm text-text-secondary mt-1">تم اختيار: {audioFile.name}</p>
+                )}
               </div>
             </div>
             <DialogFooter className="flex-row-reverse">
               <Button 
                 onClick={editingBook ? handleUpdateBook : handleAddBook}
                 className="bg-gradient-primary hover:bg-gradient-primary/90"
+                disabled={uploading}
               >
-                {editingBook ? 'حفظ التعديلات' : 'إضافة الكتاب'}
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    جاري الرفع...
+                  </>
+                ) : (
+                  editingBook ? 'حفظ التعديلات' : 'إضافة الكتاب'
+                )}
               </Button>
               <Button 
                 variant="outline" 
@@ -272,6 +302,7 @@ export default function BooksManagement() {
                   setIsAddDialogOpen(false);
                   resetForm();
                 }}
+                disabled={uploading}
               >
                 إلغاء
               </Button>
