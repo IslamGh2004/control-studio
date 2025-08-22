@@ -6,88 +6,101 @@ import {
   TrendingUp,
   Download,
   Eye,
-  MessageSquare
+  MessageSquare,
+  Loader2
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { useStats } from '@/hooks/useStats';
 import bookCover1 from '@/assets/book-cover-1.jpg';
 import bookCover2 from '@/assets/book-cover-2.jpg';
 import bookCover3 from '@/assets/book-cover-3.jpg';
 
-const statsCards = [
-  {
-    title: 'إجمالي الكتب',
-    value: '1,247',
-    change: '+12%',
-    changeType: 'positive' as const,
-    icon: BookOpen,
-    gradient: 'from-blue-500 to-blue-600'
-  },
-  {
-    title: 'المستخدمين النشطين',
-    value: '5,832',
-    change: '+8%',
-    changeType: 'positive' as const,
-    icon: Users,
-    gradient: 'from-green-500 to-green-600'
-  },
-  {
-    title: 'ساعات الاستماع',
-    value: '23,456',
-    change: '+15%',
-    changeType: 'positive' as const,
-    icon: HeadphonesIcon,
-    gradient: 'from-purple-500 to-purple-600'
-  },
-  {
-    title: 'الفئات المتاحة',
-    value: '45',
-    change: '+3%',
-    changeType: 'positive' as const,
-    icon: FolderOpen,
-    gradient: 'from-orange-500 to-orange-600'
-  }
-];
-
-const recentBooks = [
-  {
-    id: 1,
-    title: 'أسرار التطوير الشخصي',
-    author: 'د. محمد العربي',
-    category: 'التنمية البشرية',
-    cover: bookCover1,
-    downloads: 1234,
-    status: 'منشور'
-  },
-  {
-    id: 2,
-    title: 'تاريخ الحضارة الإسلامية',
-    author: 'أ. فاطمة حسن',
-    category: 'التاريخ',
-    cover: bookCover2,
-    downloads: 987,
-    status: 'منشور'
-  },
-  {
-    id: 3,
-    title: 'قصص من التراث',
-    author: 'أحمد الكاتب',
-    category: 'الأدب',
-    cover: bookCover3,
-    downloads: 756,
-    status: 'مراجعة'
-  }
-];
-
-const recentActivity = [
-  { action: 'إضافة كتاب جديد', user: 'أحمد محمد', time: 'منذ 5 دقائق', type: 'book' },
-  { action: 'تسجيل مستخدم جديد', user: 'سارة علي', time: 'منذ 15 دقيقة', type: 'user' },
-  { action: 'تحديث فئة الكتب', user: 'محمد أحمد', time: 'منذ 30 دقيقة', type: 'category' },
-  { action: 'رسالة دعم فني جديدة', user: 'عبدالله محمد', time: 'منذ ساعة', type: 'support' }
-];
-
 export default function Dashboard() {
+  const { stats, loading } = useStats();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  const statsCards = [
+    {
+      title: 'إجمالي الكتب',
+      value: stats.totalBooks.toLocaleString(),
+      change: `+${stats.monthlyGrowth.books}%`,
+      changeType: 'positive' as const,
+      icon: BookOpen,
+      gradient: 'from-blue-500 to-blue-600'
+    },
+    {
+      title: 'المستخدمين النشطين',
+      value: stats.totalUsers.toLocaleString(),
+      change: `+${stats.monthlyGrowth.users}%`,
+      changeType: 'positive' as const,
+      icon: Users,
+      gradient: 'from-green-500 to-green-600'
+    },
+    {
+      title: 'ساعات الاستماع',
+      value: stats.totalListeningTime.toLocaleString(),
+      change: `+${stats.monthlyGrowth.listeningTime}%`,
+      changeType: 'positive' as const,
+      icon: HeadphonesIcon,
+      gradient: 'from-purple-500 to-purple-600'
+    },
+    {
+      title: 'الفئات المتاحة',
+      value: stats.totalCategories.toString(),
+      change: '+3%',
+      changeType: 'positive' as const,
+      icon: FolderOpen,
+      gradient: 'from-orange-500 to-orange-600'
+    }
+  ];
+
+  // Use real recent books or fallback to static data
+  const recentBooks = stats.recentBooks.length > 0 ? stats.recentBooks.map(book => ({
+    id: book.id,
+    title: book.title,
+    author: book.author || 'غير محدد',
+    category: book.category || 'غير محدد',
+    cover: book.cover_url || bookCover1,
+    downloads: 0, // Would need download tracking
+    status: 'منشور'
+  })) : [
+    {
+      id: 1,
+      title: 'أسرار التطوير الشخصي',
+      author: 'د. محمد العربي',
+      category: 'التنمية البشرية',
+      cover: bookCover1,
+      downloads: 1234,
+      status: 'منشور'
+    },
+    {
+      id: 2,
+      title: 'تاريخ الحضارة الإسلامية',
+      author: 'أ. فاطمة حسن',
+      category: 'التاريخ',
+      cover: bookCover2,
+      downloads: 987,
+      status: 'منشور'
+    },
+    {
+      id: 3,
+      title: 'قصص من التراث',
+      author: 'أحمد الكاتب',
+      category: 'الأدب',
+      cover: bookCover3,
+      downloads: 756,
+      status: 'مراجعة'
+    }
+  ];
   return (
     <div className="space-y-8">
       {/* Page Header */}
@@ -176,7 +189,7 @@ export default function Dashboard() {
           <Card className="p-6">
             <h2 className="text-xl font-bold text-text-primary mb-6">النشاطات الأخيرة</h2>
             <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
+              {stats.recentActivity.map((activity, index) => (
                 <div key={index} className="flex items-start space-x-3 space-x-reverse">
                   <div className="h-8 w-8 rounded-full bg-primary-light flex items-center justify-center">
                     {activity.type === 'book' && <BookOpen className="h-4 w-4 text-primary" />}

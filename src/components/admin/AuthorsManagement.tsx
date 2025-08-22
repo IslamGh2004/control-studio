@@ -169,7 +169,7 @@ export default function AuthorsManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-secondary">إجمالي المؤلفين</p>
-                <p className="text-2xl font-bold text-text-primary">{authors.length}</p>
+                <p className="text-2xl font-bold text-text-primary">{stats.totalAuthors}</p>
               </div>
               <div className="h-12 w-12 bg-gradient-primary rounded-xl flex items-center justify-center">
                 <User className="h-6 w-6 text-white" />
@@ -183,7 +183,7 @@ export default function AuthorsManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-secondary">المؤلفين النشطين</p>
-                <p className="text-2xl font-bold text-text-primary">{authors.length}</p>
+                <p className="text-2xl font-bold text-text-primary">{stats.totalAuthors}</p>
               </div>
               <div className="h-12 w-12 bg-gradient-accent rounded-xl flex items-center justify-center">
                 <Badge className="h-6 w-6 text-white" />

@@ -328,7 +328,7 @@ export default function BooksManagement() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-text-secondary text-sm">كتب منشورة</p>
-              <p className="text-2xl font-bold text-text-primary">987</p>
+              <p className="text-2xl font-bold text-text-primary">{stats.totalBooks}</p>
             </div>
             <div className="h-10 w-10 rounded-lg bg-gradient-success flex items-center justify-center">
               <Eye className="h-5 w-5 text-white" />
@@ -338,8 +338,8 @@ export default function BooksManagement() {
         <Card className="stat-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-text-secondary text-sm">قيد المراجعة</p>
-              <p className="text-2xl font-bold text-text-primary">156</p>
+              <p className="text-text-secondary text-sm">متوسط المدة</p>
+              <p className="text-2xl font-bold text-text-primary">{stats.avgDuration} دقيقة</p>
             </div>
             <div className="h-10 w-10 rounded-lg bg-warning flex items-center justify-center">
               <Filter className="h-5 w-5 text-white" />
@@ -350,7 +350,7 @@ export default function BooksManagement() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-text-secondary text-sm">إجمالي التحميلات</p>
-              <p className="text-2xl font-bold text-text-primary">45.2K</p>
+              <p className="text-2xl font-bold text-text-primary">{stats.totalDownloads}</p>
             </div>
             <div className="h-10 w-10 rounded-lg bg-purple-500 flex items-center justify-center">
               <Download className="h-5 w-5 text-white" />
