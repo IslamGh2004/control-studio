@@ -23,72 +23,88 @@ serve(async (req) => {
     const coverFile = formData.get('coverFile') as File
     const bookId = formData.get('bookId') as string
 
-    if (!audioFile || !coverFile || !bookId) {
-      throw new Error('Missing required files or book ID')
+    if (!bookId) {
+      throw new Error('Missing book ID')
+    }
+
+    if (!audioFile && !coverFile) {
+      throw new Error('At least one file (audio or cover) is required')
     }
 
     console.log('Processing files for book:', bookId)
-    console.log('Audio file:', audioFile.name, 'Size:', audioFile.size)
-    console.log('Cover file:', coverFile.name, 'Size:', coverFile.size)
+    if (audioFile) console.log('Audio file:', audioFile.name, 'Size:', audioFile.size)
+    if (coverFile) console.log('Cover file:', coverFile.name, 'Size:', coverFile.size)
 
-    // Upload cover image
-    const coverFileName = `covers/${bookId}_${Date.now()}.${coverFile.name.split('.').pop()}`
-    const { data: coverData, error: coverError } = await supabaseClient.storage
-      .from('cover_images')
-      .upload(coverFileName, coverFile, {
-        upsert: true,
-        contentType: coverFile.type
-      })
+    let coverFileName, audioFileName, coverUrl, audioUrl;
 
-    if (coverError) {
-      console.error('Cover upload error:', coverError)
-      throw new Error(`Failed to upload cover: ${coverError.message}`)
+    // Upload cover image if provided
+    if (coverFile) {
+      coverFileName = `covers/${bookId}_${Date.now()}.${coverFile.name.split('.').pop()}`
+      const { data: coverData, error: coverError } = await supabaseClient.storage
+        .from('cover_images')
+        .upload(coverFileName, coverFile, {
+          upsert: true,
+          contentType: coverFile.type
+        })
+
+      if (coverError) {
+        console.error('Cover upload error:', coverError)
+        throw new Error(`Failed to upload cover: ${coverError.message}`)
+      }
+
+      const { data: coverUrlData } = supabaseClient.storage
+        .from('cover_images')
+        .getPublicUrl(coverFileName)
+      coverUrl = coverUrlData.publicUrl
     }
 
-    // Upload audio file
-    const audioFileName = `audio/${bookId}_${Date.now()}.${audioFile.name.split('.').pop()}`
-    const { data: audioData, error: audioError } = await supabaseClient.storage
-      .from('audio_files')
-      .upload(audioFileName, audioFile, {
-        upsert: true,
-        contentType: audioFile.type
-      })
+    // Upload audio file if provided
+    if (audioFile) {
+      audioFileName = `audio/${bookId}_${Date.now()}.${audioFile.name.split('.').pop()}`
+      const { data: audioData, error: audioError } = await supabaseClient.storage
+        .from('audio_files')
+        .upload(audioFileName, audioFile, {
+          upsert: true,
+          contentType: audioFile.type
+        })
 
-    if (audioError) {
-      console.error('Audio upload error:', audioError)
-      throw new Error(`Failed to upload audio: ${audioError.message}`)
+      if (audioError) {
+        console.error('Audio upload error:', audioError)
+        throw new Error(`Failed to upload audio: ${audioError.message}`)
+      }
+
+      const { data: audioUrlData } = supabaseClient.storage
+        .from('audio_files')
+        .getPublicUrl(audioFileName)
+      audioUrl = audioUrlData.publicUrl
     }
 
-    // Get audio duration using Web Audio API
+    // Get audio duration using Web Audio API (only if audio file is provided)
     let duration = 0
-    try {
-      const audioBuffer = await audioFile.arrayBuffer()
-      const audioContext = new (globalThis as any).AudioContext()
-      const decodedAudio = await audioContext.decodeAudioData(audioBuffer)
-      duration = Math.round(decodedAudio.duration)
-      console.log('Audio duration extracted:', duration, 'seconds')
-    } catch (audioError) {
-      console.error('Error extracting audio duration:', audioError)
-      // Fallback: estimate duration based on file size (rough estimation)
-      duration = Math.round(audioFile.size / 32000) // Rough estimate: 32KB per second
-      console.log('Using estimated duration:', duration, 'seconds')
+    if (audioFile) {
+      try {
+        const audioBuffer = await audioFile.arrayBuffer()
+        const audioContext = new (globalThis as any).AudioContext()
+        const decodedAudio = await audioContext.decodeAudioData(audioBuffer)
+        duration = Math.round(decodedAudio.duration)
+        console.log('Audio duration extracted:', duration, 'seconds')
+      } catch (audioError) {
+        console.error('Error extracting audio duration:', audioError)
+        // Fallback: estimate duration based on file size (rough estimation)
+        duration = Math.round(audioFile.size / 32000) // Rough estimate: 32KB per second
+        console.log('Using estimated duration:', duration, 'seconds')
+      }
     }
 
-    // Get public URLs
-    const { data: coverUrl } = supabaseClient.storage
-      .from('cover_images')
-      .getPublicUrl(coverFileName)
-
-    const { data: audioUrl } = supabaseClient.storage
-      .from('audio_files')
-      .getPublicUrl(audioFileName)
-
-    const result = {
-      coverUrl: coverUrl.publicUrl,
-      audioUrl: audioUrl.publicUrl,
-      duration: duration,
-      coverPath: coverFileName,
-      audioPath: audioFileName
+    const result: any = {}
+    if (coverUrl) {
+      result.coverUrl = coverUrl
+      result.coverPath = coverFileName
+    }
+    if (audioUrl) {
+      result.audioUrl = audioUrl
+      result.audioPath = audioFileName
+      result.duration = duration
     }
 
     console.log('Upload successful:', result)

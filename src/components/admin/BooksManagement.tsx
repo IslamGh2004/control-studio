@@ -35,6 +35,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAdminBooks } from '@/hooks/useAdminBooks';
+import { useAdminAuthors } from '@/hooks/useAdminAuthors';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
+import BookDetails from '@/components/BookDetails';
 import { useCategories } from '@/hooks/useCategories';
 
 export default function BooksManagement() {
@@ -42,6 +45,7 @@ export default function BooksManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<any>(null);
+  const [selectedBookDetails, setSelectedBookDetails] = useState<any>(null);
   const [newBook, setNewBook] = useState({
     title: '',
     author: '',
@@ -580,7 +584,7 @@ export default function BooksManagement() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                       <DropdownMenuItem>
+                       <DropdownMenuItem onClick={() => setSelectedBookDetails(book)}>
                         <Eye className="w-4 h-4 ml-2" />
                         عرض التفاصيل
                       </DropdownMenuItem>
@@ -737,6 +741,14 @@ export default function BooksManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Book Details Dialog */}
+      {selectedBookDetails && (
+        <BookDetails 
+          book={selectedBookDetails} 
+          onClose={() => setSelectedBookDetails(null)} 
+        />
+      )}
 
       {/* Pagination would go here */}
       <div className="flex items-center justify-between">
