@@ -110,7 +110,35 @@ export default function Dashboard() {
           <p className="text-text-secondary mt-1">نظرة شاملة على أداء المنصة</p>
         </div>
         <div className="flex items-center space-x-3 space-x-reverse">
-          <Button variant="outline" className="action-button">
+          <Button variant="outline" className="action-button" onClick={() => {
+            // Export general report
+            const reportData = {
+              totalBooks: stats.totalBooks,
+              totalUsers: stats.totalUsers,
+              totalCategories: stats.totalCategories,
+              totalAuthors: stats.totalAuthors,
+              totalListeningTime: stats.totalListeningTime,
+              monthlyGrowth: stats.monthlyGrowth,
+              generatedAt: new Date().toISOString()
+            };
+            
+            const csvContent = [
+              'نوع البيانات,القيمة',
+              `إجمالي الكتب,${stats.totalBooks}`,
+              `المستخدمين النشطين,${stats.totalUsers}`,
+              `ساعات الاستماع,${stats.totalListeningTime}`,
+              `الفئات المتاحة,${stats.totalCategories}`,
+              `نمو الكتب الشهري,${stats.monthlyGrowth.books}%`,
+              `نمو المستخدمين الشهري,${stats.monthlyGrowth.users}%`,
+              `نمو الاستماع الشهري,${stats.monthlyGrowth.listeningTime}%`
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `dashboard_report_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+          }}>
             <Download className="w-4 h-4 ml-2" />
             تصدير التقرير
           </Button>

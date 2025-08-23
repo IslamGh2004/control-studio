@@ -67,6 +67,7 @@ export type Database = {
           description: string | null
           duration_in_seconds: number | null
           id: number
+          status: string | null
           title: string | null
         }
         Insert: {
@@ -79,6 +80,7 @@ export type Database = {
           description?: string | null
           duration_in_seconds?: number | null
           id?: number
+          status?: string | null
           title?: string | null
         }
         Update: {
@@ -91,6 +93,7 @@ export type Database = {
           description?: string | null
           duration_in_seconds?: number | null
           id?: number
+          status?: string | null
           title?: string | null
         }
         Relationships: [

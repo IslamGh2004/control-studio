@@ -91,8 +91,13 @@ export const useStats = () => {
         ? Math.round(((recentBooksCount || 0) - previousBooksCount) / previousBooksCount * 100)
         : 100;
 
-      // Mock data for features not yet implemented
-      const recentActivity = [
+      // Get recent activity from books created recently
+      const recentActivity = recentBooks?.slice(0, 3).map((book, index) => ({
+        action: `إضافة كتاب "${book.title}"`,
+        user: 'النظام',
+        time: index === 0 ? 'منذ دقائق' : index === 1 ? 'منذ ساعة' : 'منذ ساعتين',
+        type: 'book'
+      })) || [
         { 
           action: 'إضافة كتاب جديد', 
           user: 'النظام', 

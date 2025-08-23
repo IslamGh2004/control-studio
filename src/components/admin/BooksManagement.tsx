@@ -49,13 +49,15 @@ export default function BooksManagement() {
     category_id: '',
     duration_in_seconds: 0,
     cover_url: '',
-    audio_url: ''
+    audio_url: '',
+    status: 'منشور'
   });
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
 
-  const { books, loading, addBook, updateBook, deleteBook, stats } = useAdminBooks();
+  const { books, loading, addBook, updateBook, deleteBook, bulkUploadBooks, exportBooks, stats } = useAdminBooks();
   const { categories } = useCategories();
 
   const filteredBooks = books.filter(book => {
@@ -84,7 +86,8 @@ export default function BooksManagement() {
             category_id: '',
             duration_in_seconds: 0,
             cover_url: '',
-            audio_url: ''
+            audio_url: '',
+            status: 'منشور'
           });
           setCoverFile(null);
           setAudioFile(null);
@@ -105,29 +108,49 @@ export default function BooksManagement() {
       category_id: book.category_id?.toString() || '',
       duration_in_seconds: book.duration_in_seconds || 0,
       cover_url: book.cover_url || '',
-      audio_url: book.audio_url || ''
+      audio_url: book.audio_url || '',
+      status: book.status || 'منشور'
     });
   };
 
   const handleUpdateBook = async () => {
     if (editingBook && newBook.title.trim()) {
-      const result = await updateBook(editingBook.id, {
-        ...newBook,
-        category_id: newBook.category_id ? parseInt(newBook.category_id) : null
-      });
-      if (result.success) {
-        setEditingBook(null);
-        setNewBook({
-          title: '',
-          author: '',
-          description: '',
-          category_id: '',
-          duration_in_seconds: 0,
-          cover_url: '',
-          audio_url: ''
-        });
+      setUploading(true);
+      try {
+        const bookData = {
+          ...newBook,
+          category_id: newBook.category_id ? parseInt(newBook.category_id) : null
+        };
+        
+        const files = (coverFile || audioFile) ? { coverFile: coverFile || undefined, audioFile: audioFile || undefined } : undefined;
+        const result = await updateBook(editingBook.id, bookData, files);
+        
+        if (result.success) {
+          setEditingBook(null);
+          resetForm();
+        }
+      } finally {
+        setUploading(false);
       }
     }
+  };
+
+  const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setBulkUploading(true);
+      try {
+        await bulkUploadBooks(files);
+      } finally {
+        setBulkUploading(false);
+        // Reset input
+        event.target.value = '';
+      }
+    }
+  };
+
+  const handleExport = async () => {
+    await exportBooks();
   };
 
   const handleDeleteBook = async (id: number) => {
@@ -142,7 +165,8 @@ export default function BooksManagement() {
       category_id: '',
       duration_in_seconds: 0,
       cover_url: '',
-      audio_url: ''
+      audio_url: '',
+      status: 'منشور'
     });
     setCoverFile(null);
     setAudioFile(null);
@@ -280,6 +304,19 @@ export default function BooksManagement() {
                   <p className="text-sm text-text-secondary mt-1">تم اختيار: {audioFile.name}</p>
                 )}
               </div>
+              <div>
+                <Label htmlFor="status" className="text-right block">الحالة</Label>
+                <Select value={newBook.status} onValueChange={(value) => setNewBook({...newBook, status: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الحالة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="منشور">منشور</SelectItem>
+                    <SelectItem value="مسودة">مسودة</SelectItem>
+                    <SelectItem value="مراجعة">مراجعة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter className="flex-row-reverse">
               <Button 
@@ -396,11 +433,25 @@ export default function BooksManagement() {
             </DropdownMenu>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="action-button">
-              <Upload className="w-4 h-4 ml-2" />
-              رفع مجموعة كتب
-            </Button>
-            <Button variant="outline" className="action-button">
+            <div className="relative">
+              <input
+                type="file"
+                multiple
+                accept="audio/*"
+                onChange={handleBulkUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={bulkUploading}
+              />
+              <Button variant="outline" className="action-button" disabled={bulkUploading}>
+                {bulkUploading ? (
+                  <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 ml-2" />
+                )}
+                رفع مجموعة كتب
+              </Button>
+            </div>
+            <Button variant="outline" className="action-button" onClick={handleExport}>
               <Download className="w-4 h-4 ml-2" />
               تصدير القائمة
             </Button>
@@ -455,8 +506,12 @@ export default function BooksManagement() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className="status-badge bg-green-100 text-green-800">
-                    منشور
+                  <Badge className={`status-badge ${
+                    book.status === 'منشور' ? 'bg-green-100 text-green-800' :
+                    book.status === 'مسودة' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {book.status || 'منشور'}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-text-secondary">
