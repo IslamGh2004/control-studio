@@ -56,6 +56,16 @@ export default function BooksManagement() {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [bulkUploading, setBulkUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [bulkBooks, setBulkBooks] = useState<Array<{
+    file: File;
+    title: string;
+    author: string;
+    description: string;
+    category_id: string;
+    status: string;
+  }>>([]);
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
 
   const { books, loading, addBook, updateBook, deleteBook, bulkUploadBooks, exportBooks, stats } = useAdminBooks();
   const { categories } = useCategories();
@@ -69,29 +79,25 @@ export default function BooksManagement() {
   const handleAddBook = async () => {
     if (newBook.title.trim()) {
       setUploading(true);
+      setUploadProgress(0);
+      // Close dialog immediately
+      setIsAddDialogOpen(false);
+      
       try {
         const bookData = {
           ...newBook,
           category_id: newBook.category_id ? parseInt(newBook.category_id) : null
         };
         
+        setUploadProgress(30);
         const files = (coverFile && audioFile) ? { coverFile, audioFile } : undefined;
+        setUploadProgress(60);
         const result = await addBook(bookData, files);
+        setUploadProgress(100);
         
         if (result.success) {
-          setNewBook({
-            title: '',
-            author: '',
-            description: '',
-            category_id: '',
-            duration_in_seconds: 0,
-            cover_url: '',
-            audio_url: '',
-            status: 'منشور'
-          });
-          setCoverFile(null);
-          setAudioFile(null);
-          setIsAddDialogOpen(false);
+          resetForm();
+          setTimeout(() => setUploadProgress(0), 1000);
         }
       } finally {
         setUploading(false);
@@ -116,18 +122,26 @@ export default function BooksManagement() {
   const handleUpdateBook = async () => {
     if (editingBook && newBook.title.trim()) {
       setUploading(true);
+      setUploadProgress(0);
       try {
         const bookData = {
           ...newBook,
           category_id: newBook.category_id ? parseInt(newBook.category_id) : null
         };
         
-        const files = (coverFile || audioFile) ? { coverFile: coverFile || undefined, audioFile: audioFile || undefined } : undefined;
-        const result = await updateBook(editingBook.id, bookData, files);
+        setUploadProgress(30);
+        const files: any = {};
+        if (coverFile) files.coverFile = coverFile;
+        if (audioFile) files.audioFile = audioFile;
+        
+        setUploadProgress(60);
+        const result = await updateBook(editingBook.id, bookData, Object.keys(files).length > 0 ? files : undefined);
+        setUploadProgress(100);
         
         if (result.success) {
           setEditingBook(null);
           resetForm();
+          setTimeout(() => setUploadProgress(0), 1000);
         }
       } finally {
         setUploading(false);
@@ -135,18 +149,59 @@ export default function BooksManagement() {
     }
   };
 
-  const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-      setBulkUploading(true);
-      try {
-        await bulkUploadBooks(files);
-      } finally {
-        setBulkUploading(false);
-        // Reset input
-        event.target.value = '';
-      }
+      const newBulkBooks = Array.from(files).map(file => ({
+        file,
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        author: '',
+        description: '',
+        category_id: '',
+        status: 'منشور'
+      }));
+      setBulkBooks(newBulkBooks);
+      setIsBulkDialogOpen(true);
+      event.target.value = '';
     }
+  };
+
+  const handleBulkUpload = async () => {
+    setBulkUploading(true);
+    setUploadProgress(0);
+    setIsBulkDialogOpen(false);
+    
+    try {
+      for (let i = 0; i < bulkBooks.length; i++) {
+        const book = bulkBooks[i];
+        const bookData = {
+          title: book.title,
+          author: book.author || 'غير محدد',
+          description: book.description || 'تم رفعه بالدفعة',
+          category_id: book.category_id ? parseInt(book.category_id) : null,
+          status: book.status
+        };
+        
+        const files = { audioFile: book.file, coverFile: new File([], 'placeholder.png') };
+        await addBook(bookData, files);
+        setUploadProgress(((i + 1) / bulkBooks.length) * 100);
+      }
+      
+      setBulkBooks([]);
+      setTimeout(() => setUploadProgress(0), 1000);
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  const updateBulkBook = (index: number, field: string, value: string) => {
+    setBulkBooks(prev => prev.map((book, i) => 
+      i === index ? { ...book, [field]: value } : book
+    ));
+  };
+
+  const removeBulkBook = (index: number) => {
+    setBulkBooks(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleExport = async () => {
@@ -438,7 +493,7 @@ export default function BooksManagement() {
                 type="file"
                 multiple
                 accept="audio/*"
-                onChange={handleBulkUpload}
+                onChange={handleFileSelect}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={bulkUploading}
               />
@@ -552,6 +607,136 @@ export default function BooksManagement() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Upload Progress Bar */}
+      {(uploading || bulkUploading) && (
+        <Card className="p-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-secondary">
+                {bulkUploading ? 'جاري رفع الكتب...' : 'جاري رفع الكتاب...'}
+              </span>
+              <span className="text-sm text-text-secondary">{Math.round(uploadProgress)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Bulk Upload Dialog */}
+      <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-right">رفع مجموعة من الكتب</DialogTitle>
+            <DialogDescription className="text-right">
+              أدخل معلومات كل كتاب قبل الرفع
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {bulkBooks.map((book, index) => (
+              <Card key={index} className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-text-primary">الكتاب {index + 1}</h4>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => removeBulkBook(index)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-right block">العنوان</Label>
+                    <Input
+                      value={book.title}
+                      onChange={(e) => updateBulkBook(index, 'title', e.target.value)}
+                      className="text-right"
+                      placeholder="عنوان الكتاب"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-right block">المؤلف</Label>
+                    <Input
+                      value={book.author}
+                      onChange={(e) => updateBulkBook(index, 'author', e.target.value)}
+                      className="text-right"
+                      placeholder="اسم المؤلف"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-right block">الفئة</Label>
+                    <Select 
+                      value={book.category_id} 
+                      onValueChange={(value) => updateBulkBook(index, 'category_id', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر الفئة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map(category => (
+                          <SelectItem key={category.id} value={category.id.toString()}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-right block">الحالة</Label>
+                    <Select 
+                      value={book.status} 
+                      onValueChange={(value) => updateBulkBook(index, 'status', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر الحالة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="منشور">منشور</SelectItem>
+                        <SelectItem value="مسودة">مسودة</SelectItem>
+                        <SelectItem value="مراجعة">مراجعة</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-right block">الوصف</Label>
+                    <Textarea
+                      value={book.description}
+                      onChange={(e) => updateBulkBook(index, 'description', e.target.value)}
+                      className="text-right"
+                      placeholder="وصف الكتاب"
+                      rows={2}
+                    />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-sm text-text-secondary">
+                    الملف: {book.file.name}
+                  </p>
+                </div>
+              </Card>
+            ))}
+          </div>
+          <DialogFooter className="flex-row-reverse">
+            <Button 
+              onClick={handleBulkUpload}
+              className="bg-gradient-primary hover:bg-gradient-primary/90"
+              disabled={bulkBooks.length === 0}
+            >
+              رفع جميع الكتب ({bulkBooks.length})
+            </Button>
+            <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)}>
+              إلغاء
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Pagination would go here */}
       <div className="flex items-center justify-between">
