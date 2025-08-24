@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, HeadphonesIcon, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
@@ -12,29 +14,61 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      if (email === 'admin@example.com' && password === 'admin123') {
-        toast({
-          title: "تم تسجيل الدخول بنجاح",
-          description: "مرحباً بك في لوحة التحكم",
-        });
-        // Navigate to dashboard - in a real app, you'd use router
-        window.location.href = '/admin';
-      } else {
-        toast({
-          title: "خطأ في تسجيل الدخول",
-          description: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
-          variant: "destructive",
-        });
+    try {
+      // Sign in with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        throw new Error(authError.message);
       }
+
+      if (!authData.user) {
+        throw new Error('فشل في تسجيل الدخول');
+      }
+
+      // Check if user is admin
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', authData.user.id)
+        .single();
+
+      if (adminError || !adminData) {
+        // If user is not in admins table, add them (for demo purposes)
+        // In production, this should be done manually by a super admin
+        const { error: insertError } = await supabase
+          .from('admins')
+          .insert([{ user_id: authData.user.id }]);
+
+        if (insertError) {
+          throw new Error('المستخدم غير مخول للوصول إلى لوحة التحكم');
+        }
+      }
+
+      toast({
+        title: "تم تسجيل الدخول بنجاح",
+        description: "مرحباً بك في لوحة التحكم",
+      });
+      
+      navigate('/admin');
+    } catch (error: any) {
+      toast({
+        title: "خطأ في تسجيل الدخول",
+        description: error.message || "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -131,12 +165,6 @@ export default function AdminLogin() {
               )}
             </Button>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-surface-secondary rounded-lg border border-border">
-              <p className="text-text-secondary text-sm mb-2">بيانات تجريبية:</p>
-              <p className="text-text-primary text-sm"><strong>البريد:</strong> admin@example.com</p>
-              <p className="text-text-primary text-sm"><strong>كلمة المرور:</strong> admin123</p>
-            </div>
           </form>
         </Card>
 

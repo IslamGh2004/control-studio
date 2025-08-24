@@ -25,88 +25,39 @@ export const useUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      // Fetch real users from profiles table
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        // Fallback to auth users if profiles table is empty
-        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-        
-        if (authError) throw authError;
-        
-        const authUsers = authData.users.map(user => ({
-          id: user.id,
-          email: user.email,
-          name: user.user_metadata?.full_name || 'مستخدم جديد',
-          avatar_url: user.user_metadata?.avatar_url,
-          phone: user.phone,
-          created_at: user.created_at,
-          last_sign_in_at: user.last_sign_in_at,
-          email_confirmed_at: user.email_confirmed_at,
-          phone_confirmed_at: user.phone_confirmed_at,
-          is_banned: user.banned_until ? new Date(user.banned_until) > new Date() : false,
-          city: 'غير محدد',
-          country: 'غير محدد',
-          bio: ''
-        }));
-        
-        setUsers(authUsers);
-      } else {
-        // Map profiles data to user interface
-        const profileUsers = profilesData.map(profile => ({
-          id: profile.user_id,
-          email: 'غير محدد', // Would need to join with auth.users
-          name: profile.full_name || 'مستخدم جديد',
-          avatar_url: profile.avatar_url,
-          phone: profile.phone,
-          created_at: profile.created_at,
-          last_sign_in_at: profile.updated_at, // Use updated_at as proxy
-          email_confirmed_at: profile.created_at, // Assume confirmed if profile exists
-          is_banned: false, // Would need separate banned users tracking
-          city: profile.city || 'غير محدد',
-          country: profile.country || 'غير محدد',
-          bio: profile.bio || ''
-        }));
-        
-        setUsers(profileUsers);
+      // Check if current user is admin first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
       }
+
+      const { data: adminCheck } = await supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!adminCheck) {
+        throw new Error('User not authorized for admin access');
+      }
+
+      // Use edge function to get real admin data
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/get-admin-dashboard-data?type=users`, {
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch users data');
+      }
+
+      const { users: fetchedUsers } = await response.json();
+      setUsers(fetchedUsers || []);
     } catch (error) {
       console.error('Error fetching users:', error);
-      // Fallback to mock data if all else fails
-      setUsers([
-        {
-          id: '1',
-          email: 'ahmed.mohammed@email.com',
-          name: 'أحمد محمد علي',
-          avatar_url: '/placeholder.svg',
-          phone: '+20123456789',
-          created_at: '2024-01-15T00:00:00Z',
-          last_sign_in_at: '2024-08-16T10:30:00Z',
-          email_confirmed_at: '2024-01-15T01:00:00Z',
-          is_banned: false,
-          city: 'القاهرة',
-          country: 'مصر',
-          bio: 'محب للكتب الصوتية'
-        },
-        {
-          id: '2',
-          email: 'fatima.khaled@email.com',
-          name: 'فاطمة خالد',
-          avatar_url: '/placeholder.svg',
-          phone: '+966123456789',
-          created_at: '2024-01-10T00:00:00Z',
-          last_sign_in_at: '2024-08-15T14:20:00Z',
-          email_confirmed_at: '2024-01-10T02:00:00Z',
-          is_banned: false,
-          city: 'الرياض',
-          country: 'السعودية',
-          bio: 'قارئة نشطة'
-        }
-      ]);
+      setUsers([]);
       toast({
         title: 'خطأ',
         description: 'حدث خطأ في تحميل المستخدمين',
@@ -127,55 +78,70 @@ export const useUsers = () => {
     bio?: string;
   }) => {
     try {
-      // Create auth user first
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: userData.password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: userData.full_name
-        }
+      // Check admin privileges
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data: adminCheck } = await supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!adminCheck) {
+        throw new Error('User not authorized for admin operations');
+      }
+
+      // Use edge function to create user with admin privileges
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/create-user`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
       });
 
-      if (authError) throw authError;
-
-      // Create profile if user creation was successful
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            user_id: authData.user.id,
-            full_name: userData.full_name,
-            phone: userData.phone,
-            city: userData.city,
-            country: userData.country,
-            bio: userData.bio
-          }]);
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          // Don't throw error here as user was created successfully
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create user');
       }
+
+      const { user: newUser } = await response.json();
 
       await fetchUsers();
       toast({
         title: 'تم الإضافة',
         description: 'تم إضافة المستخدم بنجاح',
       });
-      return { success: true, data: authData.user };
+      return { success: true, data: newUser };
     } catch (error) {
       console.error('Error adding user:', error);
       toast({
         title: 'خطأ',
-        description: 'حدث خطأ في إضافة المستخدم',
+        description: error.message || 'حدث خطأ في إضافة المستخدم',
         variant: 'destructive',
       });
       return { success: false, error };
     }
   };
+
   const banUser = async (userId: string) => {
     try {
+      // Check admin privileges
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data: adminCheck } = await supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!adminCheck) {
+        throw new Error('User not authorized for admin operations');
+      }
+
       // Update user ban status in auth
       const { error } = await supabase.auth.admin.updateUserById(userId, {
         ban_duration: '876000h' // Very long ban duration
@@ -205,6 +171,20 @@ export const useUsers = () => {
 
   const unbanUser = async (userId: string) => {
     try {
+      // Check admin privileges
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data: adminCheck } = await supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!adminCheck) {
+        throw new Error('User not authorized for admin operations');
+      }
+
       // Remove ban from user
       const { error } = await supabase.auth.admin.updateUserById(userId, {
         ban_duration: 'none'
@@ -234,6 +214,20 @@ export const useUsers = () => {
 
   const deleteUser = async (userId: string) => {
     try {
+      // Check admin privileges
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data: adminCheck } = await supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!adminCheck) {
+        throw new Error('User not authorized for admin operations');
+      }
+
       // Delete user from auth
       const { error } = await supabase.auth.admin.deleteUser(userId);
 
