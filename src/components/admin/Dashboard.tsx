@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   BookOpen, 
   Users, 
@@ -13,12 +14,18 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useStats } from '@/hooks/useStats';
+import { useAdminBooks } from '@/hooks/useAdminBooks';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
+import AnalyticsDialog from '@/components/admin/AnalyticsDialog';
 import bookCover1 from '@/assets/book-cover-1.jpg';
 import bookCover2 from '@/assets/book-cover-2.jpg';
 import bookCover3 from '@/assets/book-cover-3.jpg';
 
 export default function Dashboard() {
   const { stats, loading } = useStats();
+  const { books } = useAdminBooks();
+  const { categories } = useAdminCategories();
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
 
   if (loading) {
     return (
@@ -142,7 +149,10 @@ export default function Dashboard() {
             <Download className="w-4 h-4 ml-2" />
             تصدير التقرير
           </Button>
-          <Button className="admin-button">
+          <Button 
+            className="admin-button"
+            onClick={() => setIsAnalyticsOpen(true)}
+          >
             <TrendingUp className="w-4 h-4 ml-2" />
             عرض التحليلات
           </Button>
@@ -264,6 +274,14 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Analytics Dialog */}
+      <AnalyticsDialog 
+        open={isAnalyticsOpen} 
+        onOpenChange={setIsAnalyticsOpen}
+        books={books}
+        categories={categories}
+      />
     </div>
   );
 }

@@ -45,11 +45,14 @@ export default function AnalyticsDialog({ open, onOpenChange, books, categories 
   // Generate analytics data
   const generateAnalytics = () => {
     // Books by category
-    const booksByCategory = categories.map(category => ({
-      name: category.name,
-      count: books.filter(book => book.category_id === category.id).length,
-      percentage: Math.round((books.filter(book => book.category_id === category.id).length / books.length) * 100) || 0
-    })).filter(item => item.count > 0);
+    const booksByCategory = categories.map(category => {
+      const count = books.filter(book => book.category_id === category.id).length;
+      return {
+        name: category.name || 'غير محدد',
+        count,
+        percentage: books.length > 0 ? Math.round((count / books.length) * 100) : 0
+      };
+    }).filter(item => item.count > 0);
 
     // Books by status
     const booksByStatus = [
@@ -60,12 +63,12 @@ export default function AnalyticsDialog({ open, onOpenChange, books, categories 
 
     // Monthly uploads (mock data)
     const monthlyUploads = [
-      { month: 'يناير', books: 12, users: 45 },
-      { month: 'فبراير', books: 18, users: 52 },
-      { month: 'مارس', books: 25, users: 68 },
-      { month: 'أبريل', books: 22, users: 71 },
-      { month: 'مايو', books: 30, users: 89 },
-      { month: 'يونيو', books: books.length, users: 95 }
+      { month: 'يناير', books: Math.max(1, Math.floor(books.length * 0.1)), users: 45 },
+      { month: 'فبراير', books: Math.max(1, Math.floor(books.length * 0.15)), users: 52 },
+      { month: 'مارس', books: Math.max(1, Math.floor(books.length * 0.2)), users: 68 },
+      { month: 'أبريل', books: Math.max(1, Math.floor(books.length * 0.18)), users: 71 },
+      { month: 'مايو', books: Math.max(1, Math.floor(books.length * 0.25)), users: 89 },
+      { month: 'يونيو', books: Math.max(1, Math.floor(books.length * 0.12)), users: 95 }
     ];
 
     // Top authors by book count
@@ -82,7 +85,7 @@ export default function AnalyticsDialog({ open, onOpenChange, books, categories 
 
     // Duration analytics
     const totalDuration = books.reduce((sum, book) => sum + (book.duration_in_seconds || 0), 0);
-    const avgDuration = totalDuration / books.length || 0;
+    const avgDuration = books.length > 0 ? totalDuration / books.length : 0;
     const longestBook = books.reduce((longest, book) => 
       (book.duration_in_seconds || 0) > (longest.duration_in_seconds || 0) ? book : longest, 
       books[0] || {}
@@ -424,13 +427,16 @@ export default function AnalyticsDialog({ open, onOpenChange, books, categories 
                     <div className="flex items-center justify-between">
                       <span className="text-text-secondary">أطول كتاب</span>
                       <span className="font-medium text-text-primary">
-                        {Math.round((analytics.longestBook.duration_in_seconds || 0) / 60)} دقيقة
+                        {analytics.longestBook.title ? 
+                          `${Math.round((analytics.longestBook.duration_in_seconds || 0) / 60)} دقيقة` : 
+                          'لا توجد بيانات'
+                        }
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-text-secondary">إجمالي التحميلات</span>
                       <span className="font-medium text-text-primary">
-                        {Math.floor(Math.random() * 10000) + 5000}
+                        {books.length * Math.floor(Math.random() * 100) + 500}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -452,7 +458,7 @@ export default function AnalyticsDialog({ open, onOpenChange, books, categories 
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {books.slice(0, 5).map((book, index) => (
+                  {books.slice(0, 5).map((book) => (
                     <div key={book.id} className="flex items-center justify-between p-3 bg-surface-secondary rounded-lg">
                       <div className="flex items-center gap-3">
                         <img 
@@ -461,13 +467,13 @@ export default function AnalyticsDialog({ open, onOpenChange, books, categories 
                           className="w-10 h-12 rounded object-cover"
                         />
                         <div>
-                          <p className="font-medium text-text-primary">{book.title}</p>
-                          <p className="text-sm text-text-secondary">{book.author}</p>
+                          <p className="font-medium text-text-primary">{book.title || 'عنوان غير محدد'}</p>
+                          <p className="text-sm text-text-secondary">{book.author || 'مؤلف غير محدد'}</p>
                         </div>
                       </div>
                       <div className="text-left">
                         <Badge variant={book.status === 'منشور' ? 'default' : 'secondary'}>
-                          {book.status}
+                          {book.status || 'منشور'}
                         </Badge>
                         <p className="text-xs text-text-muted mt-1">
                           {new Date(book.created_at).toLocaleDateString('ar-EG')}
@@ -475,6 +481,11 @@ export default function AnalyticsDialog({ open, onOpenChange, books, categories 
                       </div>
                     </div>
                   ))}
+                  {books.length === 0 && (
+                    <div className="text-center py-8 text-text-secondary">
+                      لا توجد كتب متاحة حالياً
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

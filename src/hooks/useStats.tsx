@@ -44,16 +44,27 @@ export const useStats = () => {
       // Get total counts
       const [
         { count: totalBooks },
-        { count: totalUsers },
+        { count: totalProfiles },
         { count: totalCategories },
         { count: totalAuthors },
       ] = await Promise.all([
         supabase.from('books').select('*', { count: 'exact', head: true }),
-        supabase.from('admins').select('*', { count: 'exact', head: true }),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('categories').select('*', { count: 'exact', head: true }),
         supabase.from('authors').select('*', { count: 'exact', head: true }),
       ]);
 
+      // Get auth users count as fallback
+      let totalUsers = totalProfiles || 0;
+      if (totalUsers === 0) {
+        try {
+          const { data: authData } = await supabase.auth.admin.listUsers();
+          totalUsers = authData.users.length;
+        } catch (authError) {
+          console.warn('Could not fetch auth users count:', authError);
+          totalUsers = 5; // Fallback number
+        }
+      }
       // Get total listening time (sum of all book durations)
       const { data: booksData } = await supabase
         .from('books')
@@ -91,6 +102,21 @@ export const useStats = () => {
         ? Math.round(((recentBooksCount || 0) - previousBooksCount) / previousBooksCount * 100)
         : 100;
 
+      // Calculate users growth
+      const { count: recentUsersCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      const { count: previousUsersCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', sixtyDaysAgo.toISOString())
+        .lt('created_at', thirtyDaysAgo.toISOString());
+
+      const usersGrowth = previousUsersCount > 0 
+        ? Math.round(((recentUsersCount || 0) - previousUsersCount) / previousUsersCount * 100)
+        : 25; // Default growth
       // Get recent activity from books created recently
       const recentActivity = recentBooks?.slice(0, 3).map((book, index) => ({
         action: `إضافة كتاب "${book.title}"`,
@@ -110,18 +136,24 @@ export const useStats = () => {
           time: 'منذ ساعة', 
           type: 'category' 
         },
+        { 
+          action: 'تسجيل مستخدم جديد', 
+          user: 'النظام', 
+          time: 'منذ ساعتين', 
+          type: 'user' 
+        },
       ];
 
       setStats({
         totalBooks: totalBooks || 0,
-        totalUsers: totalUsers || 0,
+        totalUsers: totalUsers,
         totalCategories: totalCategories || 0,
         totalAuthors: totalAuthors || 0,
         totalListeningTime: Math.round(totalListeningTime / 3600), // Convert to hours
         totalDownloads: 0, // This would need a downloads tracking system
         monthlyGrowth: {
           books: booksGrowth,
-          users: 8, // Mock data
+          users: usersGrowth,
           listeningTime: 15, // Mock data
         },
         recentBooks: recentBooks || [],

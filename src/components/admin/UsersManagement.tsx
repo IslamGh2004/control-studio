@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Search, Eye, UserX, UserCheck, Trash2, MapPin, Calendar, Headphones, Plus, Phone, Mail } from 'lucide-react';
+import { Search, Eye, UserX, UserCheck, Trash2, MapPin, Calendar, Headphones, Plus, Phone, Mail, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUsers } from '@/hooks/useUsers';
@@ -15,14 +17,24 @@ export default function UsersManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newUser, setNewUser] = useState({
+    email: '',
+    password: '',
+    full_name: '',
+    phone: '',
+    city: '',
+    country: '',
+    bio: ''
+  });
   
-  const { users, loading, banUser, unbanUser, deleteUser, stats } = useUsers();
+  const { users, loading, addUser, banUser, unbanUser, deleteUser, stats } = useUsers();
 
   // Enhanced user data with additional fields
   const enhancedUsers = users.map(user => ({
     ...user,
-    country: user.id === '1' ? 'مصر' : user.id === '2' ? 'السعودية' : user.id === '3' ? 'الإمارات' : user.id === '4' ? 'الأردن' : 'المغرب',
-    city: user.id === '1' ? 'القاهرة' : user.id === '2' ? 'الرياض' : user.id === '3' ? 'دبي' : user.id === '4' ? 'عمان' : 'الدار البيضاء',
+    country: user.country || 'غير محدد',
+    city: user.city || 'غير محدد',
     booksRead: Math.floor(Math.random() * 50) + 10,
     totalListeningTime: `${Math.floor(Math.random() * 200) + 50} ساعة`,
     status: user.is_banned ? 'banned' : user.email_confirmed_at ? 'active' : 'inactive'
@@ -39,6 +51,23 @@ export default function UsersManagement() {
     return matchesSearch && matchesStatus && matchesCountry;
   });
 
+  const handleAddUser = async () => {
+    if (newUser.email.trim() && newUser.password.trim()) {
+      const result = await addUser(newUser);
+      if (result.success) {
+        setNewUser({
+          email: '',
+          password: '',
+          full_name: '',
+          phone: '',
+          city: '',
+          country: '',
+          bio: ''
+        });
+        setIsAddDialogOpen(false);
+      }
+    }
+  };
   const handleToggleUserStatus = async (userId: string) => {
     const user = users.find(u => u.id === userId);
     if (user?.is_banned) {
@@ -72,6 +101,13 @@ export default function UsersManagement() {
 
   const uniqueCountries = [...new Set(enhancedUsers.map(user => user.country))];
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -80,6 +116,119 @@ export default function UsersManagement() {
           <h1 className="text-3xl font-bold text-text-primary">إدارة المستخدمين</h1>
           <p className="text-text-secondary mt-1">إدارة ومراقبة حسابات المستخدمين</p>
         </div>
+        
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              className="bg-gradient-primary hover:bg-gradient-primary/90 text-white shadow-elegant"
+            >
+              <Plus className="ml-2 h-4 w-4" />
+              إضافة مستخدم جديد
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-right">إضافة مستخدم جديد</DialogTitle>
+              <DialogDescription className="text-right">
+                أدخل بيانات المستخدم الجديد
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="email" className="text-right block">البريد الإلكتروني*</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                  placeholder="أدخل البريد الإلكتروني"
+                  className="text-right"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <Label htmlFor="password" className="text-right block">كلمة المرور*</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                  placeholder="أدخل كلمة المرور"
+                  className="text-right"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <Label htmlFor="full_name" className="text-right block">الاسم الكامل</Label>
+                <Input
+                  id="full_name"
+                  value={newUser.full_name}
+                  onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
+                  placeholder="أدخل الاسم الكامل"
+                  className="text-right"
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone" className="text-right block">رقم الهاتف</Label>
+                <Input
+                  id="phone"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
+                  placeholder="أدخل رقم الهاتف"
+                  className="text-right"
+                  dir="ltr"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="city" className="text-right block">المدينة</Label>
+                  <Input
+                    id="city"
+                    value={newUser.city}
+                    onChange={(e) => setNewUser({...newUser, city: e.target.value})}
+                    placeholder="المدينة"
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="country" className="text-right block">الدولة</Label>
+                  <Input
+                    id="country"
+                    value={newUser.country}
+                    onChange={(e) => setNewUser({...newUser, country: e.target.value})}
+                    placeholder="الدولة"
+                    className="text-right"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="bio" className="text-right block">نبذة شخصية</Label>
+                <Textarea
+                  id="bio"
+                  value={newUser.bio}
+                  onChange={(e) => setNewUser({...newUser, bio: e.target.value})}
+                  placeholder="أدخل نبذة شخصية"
+                  className="text-right"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex-row-reverse">
+              <Button 
+                onClick={handleAddUser}
+                className="bg-gradient-primary hover:bg-gradient-primary/90"
+              >
+                إضافة المستخدم
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsAddDialogOpen(false)}
+              >
+                إلغاء
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats Cards */}
@@ -307,6 +456,12 @@ export default function UsersManagement() {
                                     <span className="font-medium">وقت الاستماع:</span>
                                     <p className="text-text-secondary">{selectedUser.totalListeningTime}</p>
                                   </div>
+                                  {selectedUser.bio && (
+                                    <div className="col-span-2">
+                                      <span className="font-medium">النبذة الشخصية:</span>
+                                      <p className="text-text-secondary">{selectedUser.bio}</p>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
