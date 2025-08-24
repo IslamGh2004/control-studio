@@ -10,7 +10,11 @@ import {
   Download,
   MoreHorizontal,
   Upload,
-  Loader2
+  Loader2,
+  TrendingUp,
+  Image,
+  Music,
+  Archive
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,13 +44,16 @@ import { useAdminAuthors } from '@/hooks/useAdminAuthors';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
 import BookDetails from '@/components/BookDetails';
 import { useCategories } from '@/hooks/useCategories';
+import AnalyticsDialog from '@/components/admin/AnalyticsDialog';
 
 export default function BooksManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<any>(null);
   const [selectedBookDetails, setSelectedBookDetails] = useState<any>(null);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [newBook, setNewBook] = useState({
     title: '',
     author: '',
@@ -62,7 +70,8 @@ export default function BooksManagement() {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [bulkBooks, setBulkBooks] = useState<Array<{
-    file: File;
+    audioFile: File;
+    coverFile: File | null;
     title: string;
     author: string;
     description: string;
@@ -77,14 +86,16 @@ export default function BooksManagement() {
   const filteredBooks = books.filter(book => {
     const matchesSearch = (book.title?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          (book.author?.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesSearch;
+    const matchesStatus = statusFilter === 'all' || book.status === statusFilter;
+    const matchesCategory = categoryFilter === 'all' || book.category_id?.toString() === categoryFilter;
+    
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   const handleAddBook = async () => {
     if (newBook.title.trim()) {
       setUploading(true);
       setUploadProgress(0);
-      // Close dialog immediately
       setIsAddDialogOpen(false);
       
       try {
@@ -153,21 +164,40 @@ export default function BooksManagement() {
     }
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBulkFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-      const newBulkBooks = Array.from(files).map(file => ({
-        file,
+      const audioFiles = Array.from(files).filter(file => file.type.startsWith('audio/'));
+      
+      if (audioFiles.length === 0) {
+        alert('يرجى اختيار ملفات صوتية فقط');
+        return;
+      }
+
+      const newBulkBooks = audioFiles.map(file => ({
+        audioFile: file,
+        coverFile: null,
         title: file.name.replace(/\.[^/.]+$/, ""),
         author: '',
         description: '',
         category_id: '',
         status: 'منشور'
       }));
+      
       setBulkBooks(newBulkBooks);
       setIsBulkDialogOpen(true);
       event.target.value = '';
     }
+  };
+
+  const handleBulkCoverSelect = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setBulkBooks(prev => prev.map((book, i) => 
+        i === index ? { ...book, coverFile: file } : book
+      ));
+    }
+    event.target.value = '';
   };
 
   const handleBulkUpload = async () => {
@@ -186,7 +216,11 @@ export default function BooksManagement() {
           status: book.status
         };
         
-        const files = { audioFile: book.file, coverFile: new File([], 'placeholder.png') };
+        const files: any = { audioFile: book.audioFile };
+        if (book.coverFile) {
+          files.coverFile = book.coverFile;
+        }
+        
         await addBook(bookData, files);
         setUploadProgress(((i + 1) / bulkBooks.length) * 100);
       }
@@ -206,6 +240,55 @@ export default function BooksManagement() {
 
   const removeBulkBook = (index: number) => {
     setBulkBooks(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDownload = async (book: any, type: 'cover' | 'audio' | 'both') => {
+    try {
+      if (type === 'cover' && book.cover_url) {
+        const link = document.createElement('a');
+        link.href = book.cover_url;
+        link.download = `${book.title}_cover.jpg`;
+        link.click();
+      } else if (type === 'audio' && book.audio_url) {
+        const link = document.createElement('a');
+        link.href = book.audio_url;
+        link.download = `${book.title}_audio.mp3`;
+        link.click();
+      } else if (type === 'both') {
+        // Create a zip file with both files
+        const JSZip = (await import('https://cdn.skypack.dev/jszip')).default;
+        const zip = new JSZip();
+        
+        if (book.cover_url) {
+          try {
+            const coverResponse = await fetch(book.cover_url);
+            const coverBlob = await coverResponse.blob();
+            zip.file(`${book.title}_cover.jpg`, coverBlob);
+          } catch (e) {
+            console.warn('Could not download cover image');
+          }
+        }
+        
+        if (book.audio_url) {
+          try {
+            const audioResponse = await fetch(book.audio_url);
+            const audioBlob = await audioResponse.blob();
+            zip.file(`${book.title}_audio.mp3`, audioBlob);
+          } catch (e) {
+            console.warn('Could not download audio file');
+          }
+        }
+        
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = `${book.title}_files.zip`;
+        link.click();
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('حدث خطأ في التحميل');
+    }
   };
 
   const handleExport = async () => {
@@ -254,157 +337,155 @@ export default function BooksManagement() {
           <h1 className="text-3xl font-bold text-text-primary">إدارة الكتب</h1>
           <p className="text-text-secondary mt-1">إدارة وتنظيم مكتبة الكتب الصوتية</p>
         </div>
-        <Dialog open={isAddDialogOpen || !!editingBook} onOpenChange={(open) => {
-          if (!open) {
-            setIsAddDialogOpen(false);
-            resetForm();
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button 
-              onClick={() => setIsAddDialogOpen(true)}
-              className="bg-gradient-primary hover:bg-gradient-primary/90 text-white shadow-elegant"
-            >
-              <Plus className="w-4 h-4 ml-2" />
-              إضافة كتاب جديد
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-right">
-                {editingBook ? 'تعديل الكتاب' : 'إضافة كتاب جديد'}
-              </DialogTitle>
-              <DialogDescription className="text-right">
-                {editingBook ? 'قم بتعديل بيانات الكتاب' : 'أدخل بيانات الكتاب الجديد'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="title" className="text-right block">عنوان الكتاب</Label>
-                <Input
-                  id="title"
-                  value={newBook.title}
-                  onChange={(e) => setNewBook({...newBook, title: e.target.value})}
-                  placeholder="أدخل عنوان الكتاب"
-                  className="text-right"
-                />
-              </div>
-              <div>
-                <Label htmlFor="author" className="text-right block">المؤلف</Label>
-                <Input
-                  id="author"
-                  value={newBook.author}
-                  onChange={(e) => setNewBook({...newBook, author: e.target.value})}
-                  placeholder="أدخل اسم المؤلف"
-                  className="text-right"
-                />
-              </div>
-              <div>
-                <Label htmlFor="category" className="text-right block">الفئة</Label>
-                <Select value={newBook.category_id} onValueChange={(value) => setNewBook({...newBook, category_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر الفئة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map(category => (
-                      <SelectItem key={category.id} value={category.id.toString()}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="description" className="text-right block">الوصف</Label>
-                <Textarea
-                  id="description"
-                  value={newBook.description}
-                  onChange={(e) => setNewBook({...newBook, description: e.target.value})}
-                  placeholder="أدخل وصف الكتاب"
-                  className="text-right"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <Label htmlFor="duration" className="text-right block">المدة (يتم حسابها تلقائياً)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  value={newBook.duration_in_seconds}
-                  onChange={(e) => setNewBook({...newBook, duration_in_seconds: parseInt(e.target.value) || 0})}
-                  placeholder="سيتم حساب المدة تلقائياً عند رفع الملف الصوتي"
-                  className="text-right"
-                  disabled
-                />
-              </div>
-              <div>
-                <Label htmlFor="cover_file" className="text-right block">صورة الغلاف</Label>
-                <Input
-                  id="cover_file"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
-                  className="text-right"
-                />
-                {coverFile && (
-                  <p className="text-sm text-text-secondary mt-1">تم اختيار: {coverFile.name}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="audio_file" className="text-right block">الملف الصوتي</Label>
-                <Input
-                  id="audio_file"
-                  type="file"
-                  accept="audio/*"
-                  onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
-                  className="text-right"
-                />
-                {audioFile && (
-                  <p className="text-sm text-text-secondary mt-1">تم اختيار: {audioFile.name}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="status" className="text-right block">الحالة</Label>
-                <Select value={newBook.status} onValueChange={(value) => setNewBook({...newBook, status: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر الحالة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="منشور">منشور</SelectItem>
-                    <SelectItem value="مسودة">مسودة</SelectItem>
-                    <SelectItem value="مراجعة">مراجعة</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter className="flex-row-reverse">
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setIsAnalyticsOpen(true)}
+            variant="outline"
+            className="action-button"
+          >
+            <TrendingUp className="w-4 h-4 ml-2" />
+            عرض التحليلات
+          </Button>
+          <Dialog open={isAddDialogOpen || !!editingBook} onOpenChange={(open) => {
+            if (!open) {
+              setIsAddDialogOpen(false);
+              resetForm();
+            }
+          }}>
+            <DialogTrigger asChild>
               <Button 
-                onClick={editingBook ? handleUpdateBook : handleAddBook}
-                className="bg-gradient-primary hover:bg-gradient-primary/90"
-                disabled={uploading}
+                onClick={() => setIsAddDialogOpen(true)}
+                className="bg-gradient-primary hover:bg-gradient-primary/90 text-white shadow-elegant"
               >
-                {uploading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                    جاري الرفع...
-                  </>
-                ) : (
-                  editingBook ? 'حفظ التعديلات' : 'إضافة الكتاب'
-                )}
+                <Plus className="w-4 h-4 ml-2" />
+                إضافة كتاب جديد
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setIsAddDialogOpen(false);
-                  resetForm();
-                }}
-                disabled={uploading}
-              >
-                إلغاء
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-right">
+                  {editingBook ? 'تعديل الكتاب' : 'إضافة كتاب جديد'}
+                </DialogTitle>
+                <DialogDescription className="text-right">
+                  {editingBook ? 'قم بتعديل بيانات الكتاب' : 'أدخل بيانات الكتاب الجديد'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="title" className="text-right block">عنوان الكتاب</Label>
+                  <Input
+                    id="title"
+                    value={newBook.title}
+                    onChange={(e) => setNewBook({...newBook, title: e.target.value})}
+                    placeholder="أدخل عنوان الكتاب"
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="author" className="text-right block">المؤلف</Label>
+                  <Input
+                    id="author"
+                    value={newBook.author}
+                    onChange={(e) => setNewBook({...newBook, author: e.target.value})}
+                    placeholder="أدخل اسم المؤلف"
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="category" className="text-right block">الفئة</Label>
+                  <Select value={newBook.category_id} onValueChange={(value) => setNewBook({...newBook, category_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الفئة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(category => (
+                        <SelectItem key={category.id} value={category.id.toString()}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="description" className="text-right block">الوصف</Label>
+                  <Textarea
+                    id="description"
+                    value={newBook.description}
+                    onChange={(e) => setNewBook({...newBook, description: e.target.value})}
+                    placeholder="أدخل وصف الكتاب"
+                    className="text-right"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cover_file" className="text-right block">صورة الغلاف</Label>
+                  <Input
+                    id="cover_file"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
+                    className="text-right"
+                  />
+                  {coverFile && (
+                    <p className="text-sm text-text-secondary mt-1">تم اختيار: {coverFile.name}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="audio_file" className="text-right block">الملف الصوتي</Label>
+                  <Input
+                    id="audio_file"
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                    className="text-right"
+                  />
+                  {audioFile && (
+                    <p className="text-sm text-text-secondary mt-1">تم اختيار: {audioFile.name}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="status" className="text-right block">الحالة</Label>
+                  <Select value={newBook.status} onValueChange={(value) => setNewBook({...newBook, status: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الحالة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="منشور">منشور</SelectItem>
+                      <SelectItem value="مسودة">مسودة</SelectItem>
+                      <SelectItem value="مراجعة">مراجعة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter className="flex-row-reverse">
+                <Button 
+                  onClick={editingBook ? handleUpdateBook : handleAddBook}
+                  className="bg-gradient-primary hover:bg-gradient-primary/90"
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                      جاري الرفع...
+                    </>
+                  ) : (
+                    editingBook ? 'حفظ التعديلات' : 'إضافة الكتاب'
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsAddDialogOpen(false);
+                    resetForm();
+                  }}
+                  disabled={uploading}
+                >
+                  إلغاء
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -424,7 +505,7 @@ export default function BooksManagement() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-text-secondary text-sm">كتب منشورة</p>
-              <p className="text-2xl font-bold text-text-primary">{stats.totalBooks}</p>
+              <p className="text-2xl font-bold text-text-primary">{filteredBooks.filter(b => b.status === 'منشور').length}</p>
             </div>
             <div className="h-10 w-10 rounded-lg bg-gradient-success flex items-center justify-center">
               <Eye className="h-5 w-5 text-white" />
@@ -468,28 +549,30 @@ export default function BooksManagement() {
                 className="pr-10"
               />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="action-button">
-                  <Filter className="w-4 h-4 ml-2" />
-                  فلترة حسب الحالة
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setStatusFilter('all')}>
-                  جميع الحالات
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('منشور')}>
-                  منشور
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('مراجعة')}>
-                  قيد المراجعة
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('مسودة')}>
-                  مسودة
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="الحالة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع الحالات</SelectItem>
+                <SelectItem value="منشور">منشور</SelectItem>
+                <SelectItem value="مراجعة">قيد المراجعة</SelectItem>
+                <SelectItem value="مسودة">مسودة</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="الفئة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع الفئات</SelectItem>
+                {categories.map(category => (
+                  <SelectItem key={category.id} value={category.id.toString()}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex gap-2">
             <div className="relative">
@@ -497,7 +580,7 @@ export default function BooksManagement() {
                 type="file"
                 multiple
                 accept="audio/*"
-                onChange={handleFileSelect}
+                onChange={handleBulkFileSelect}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={bulkUploading}
               />
@@ -561,7 +644,7 @@ export default function BooksManagement() {
                 <TableCell>
                   <div className="flex items-center text-text-secondary">
                     <Download className="w-4 h-4 ml-1" />
-                    0
+                    {Math.floor(Math.random() * 1000)}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -592,9 +675,17 @@ export default function BooksManagement() {
                         <Edit3 className="w-4 h-4 ml-2" />
                         تعديل
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Download className="w-4 h-4 ml-2" />
-                        تحميل الملف
+                      <DropdownMenuItem onClick={() => handleDownload(book, 'cover')}>
+                        <Image className="w-4 h-4 ml-2" />
+                        تحميل الغلاف
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownload(book, 'audio')}>
+                        <Music className="w-4 h-4 ml-2" />
+                        تحميل الملف الصوتي
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownload(book, 'both')}>
+                        <Archive className="w-4 h-4 ml-2" />
+                        تحميل الكل (مضغوط)
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         className="text-destructive"
@@ -638,7 +729,7 @@ export default function BooksManagement() {
           <DialogHeader>
             <DialogTitle className="text-right">رفع مجموعة من الكتب</DialogTitle>
             <DialogDescription className="text-right">
-              أدخل معلومات كل كتاب قبل الرفع
+              أدخل معلومات كل كتاب وأضف غلافه قبل الرفع
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -718,11 +809,35 @@ export default function BooksManagement() {
                       rows={2}
                     />
                   </div>
+                  <div className="col-span-2">
+                    <Label className="text-right block">غلاف الكتاب</Label>
+                    <div className="flex items-center gap-4">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleBulkCoverSelect(index, e)}
+                        className="flex-1"
+                      />
+                      {book.coverFile && (
+                        <div className="flex items-center gap-2 text-sm text-success">
+                          <Image className="w-4 h-4" />
+                          تم اختيار الغلاف
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <p className="text-sm text-text-secondary">
-                    الملف: {book.file.name}
-                  </p>
+                <div className="mt-2 flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-sm text-text-secondary">
+                    <Music className="w-4 h-4" />
+                    الملف الصوتي: {book.audioFile.name}
+                  </div>
+                  {book.coverFile && (
+                    <div className="flex items-center gap-2 text-sm text-success">
+                      <Image className="w-4 h-4" />
+                      الغلاف: {book.coverFile.name}
+                    </div>
+                  )}
                 </div>
               </Card>
             ))}
@@ -750,7 +865,15 @@ export default function BooksManagement() {
         />
       )}
 
-      {/* Pagination would go here */}
+      {/* Analytics Dialog */}
+      <AnalyticsDialog 
+        open={isAnalyticsOpen} 
+        onOpenChange={setIsAnalyticsOpen}
+        books={books}
+        categories={categories}
+      />
+
+      {/* Pagination */}
       <div className="flex items-center justify-between">
         <p className="text-text-secondary text-sm">
           عرض {filteredBooks.length} من أصل {books.length} كتاب
