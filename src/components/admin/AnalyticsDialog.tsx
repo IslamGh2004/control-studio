@@ -79,7 +79,7 @@ export default function AnalyticsDialog({ open, onOpenChange, books, categories 
     }, {} as Record<string, number>);
 
     const topAuthors = Object.entries(authorCounts)
-      .map(([author, count]) => ({ author, count }))
+      .map(([author, count]) => ({ author, count: Number(count) }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
@@ -321,7 +321,7 @@ export default function AnalyticsDialog({ open, onOpenChange, books, categories 
                             <span className="font-medium">{author.author}</span>
                           </div>
                           <Badge className="bg-primary text-white">
-                            {author.count} كتاب
+                            {String(author.count)} كتاب
                           </Badge>
                         </div>
                       ))}

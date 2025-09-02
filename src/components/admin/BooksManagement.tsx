@@ -256,7 +256,7 @@ export default function BooksManagement() {
         link.click();
       } else if (type === 'both') {
         // Create a zip file with both files
-        const JSZip = (await import('https://cdn.skypack.dev/jszip')).default;
+        const JSZip = (await import('jszip')).default;
         const zip = new JSZip();
         
         if (book.cover_url) {

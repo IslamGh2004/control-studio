@@ -42,7 +42,7 @@ export const useUsers = () => {
       }
 
       // Use edge function to get real admin data
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/get-admin-dashboard-data?type=users`, {
+      const response = await fetch(`https://fgtvwbacqqudezispdgy.supabase.co/functions/v1/get-admin-dashboard-data?type=users`, {
         headers: {
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ export const useUsers = () => {
       }
 
       // Use edge function to create user with admin privileges
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/create-user`, {
+      const response = await fetch(`https://fgtvwbacqqudezispdgy.supabase.co/functions/v1/create-user`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
