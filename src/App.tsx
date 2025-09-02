@@ -8,6 +8,12 @@ import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Library from "./pages/Library";
+import Favorites from "./pages/Favorites";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import Categories from "./pages/Categories";
+import Books from "./pages/Books";
 import AdminLogin from "./components/admin/AdminLogin";
 import AdminLayout from "./components/admin/AdminLayout";
 import Dashboard from "./components/admin/Dashboard";
@@ -28,6 +34,12 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Layout><Index /></Layout>} />
             <Route path="/auth" element={<Layout><Auth /></Layout>} />
+            <Route path="/library" element={<Layout requireAuth><Library /></Layout>} />
+            <Route path="/favorites" element={<Layout requireAuth><Favorites /></Layout>} />
+            <Route path="/profile" element={<Layout requireAuth><Profile /></Layout>} />
+            <Route path="/settings" element={<Layout requireAuth><Settings /></Layout>} />
+            <Route path="/categories" element={<Layout><Categories /></Layout>} />
+            <Route path="/books" element={<Layout><Books /></Layout>} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Dashboard />} />

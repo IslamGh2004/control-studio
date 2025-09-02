@@ -54,21 +54,29 @@ const UserNavigation = ({ onNavigate }: UserNavigationProps) => {
                     </div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onNavigate?.('library')}>
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    مكتبتي
+                  <DropdownMenuItem asChild>
+                    <a href="/library" className="flex items-center">
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      مكتبتي
+                    </a>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onNavigate?.('favorites')}>
-                    <Heart className="mr-2 h-4 w-4" />
-                    المفضلة
+                  <DropdownMenuItem asChild>
+                    <a href="/favorites" className="flex items-center">
+                      <Heart className="mr-2 h-4 w-4" />
+                      المفضلة
+                    </a>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onNavigate?.('profile')}>
-                    <User className="mr-2 h-4 w-4" />
-                    الملف الشخصي
+                  <DropdownMenuItem asChild>
+                    <a href="/profile" className="flex items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      الملف الشخصي
+                    </a>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onNavigate?.('settings')}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    الإعدادات
+                  <DropdownMenuItem asChild>
+                    <a href="/settings" className="flex items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      الإعدادات
+                    </a>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="text-destructive">

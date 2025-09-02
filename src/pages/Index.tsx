@@ -15,7 +15,7 @@ const Index = () => {
 
   const handleNavigate = (page: string) => {
     // Handle navigation to different user pages
-    console.log(`Navigate to: ${page}`);
+    window.location.href = `/${page}`;
   };
 
   const handlePlayBook = (book: any) => {
