@@ -28,11 +28,9 @@ const navigation = [
   { name: 'إدارة الفئات', href: '/admin/categories', icon: FolderOpen },
   { name: 'إدارة المؤلفين', href: '/admin/authors', icon: HeadphonesIcon },
   { name: 'إدارة المستخدمين', href: '/admin/users', icon: Users },
-  { name: 'إدارة المشرفين', href: '/admin/admins', icon: UserCog },
+  { name: 'التقارير', href: '/admin/reports', icon: FileText },
   { name: 'الإشعارات', href: '/admin/notifications', icon: Bell },
-  { name: 'إدارة المحتوى', href: '/admin/cms', icon: FileText },
-  { name: 'الدعم الفني', href: '/admin/support', icon: MessageSquare },
-  { name: 'سجل النشاطات', href: '/admin/activity', icon: Activity },
+  { name: 'سجل النشاطات', href: '/admin/logs', icon: Activity },
   { name: 'إعدادات النظام', href: '/admin/settings', icon: Settings },
 ];
 

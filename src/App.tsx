@@ -21,6 +21,10 @@ import BooksManagement from "./components/admin/BooksManagement";
 import CategoriesManagement from "./components/admin/CategoriesManagement";
 import AuthorsManagement from "./components/admin/AuthorsManagement";
 import UsersManagement from "./components/admin/UsersManagement";
+import SettingsManagement from "./components/admin/SettingsManagement";
+import ReportsManagement from "./components/admin/ReportsManagement";
+import NotificationsManagement from "./components/admin/NotificationsManagement";
+import LogsManagement from "./components/admin/LogsManagement";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +51,10 @@ const App = () => (
               <Route path="categories" element={<CategoriesManagement />} />
               <Route path="authors" element={<AuthorsManagement />} />
               <Route path="users" element={<UsersManagement />} />
+              <Route path="settings" element={<SettingsManagement />} />
+              <Route path="reports" element={<ReportsManagement />} />
+              <Route path="notifications" element={<NotificationsManagement />} />
+              <Route path="logs" element={<LogsManagement />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
